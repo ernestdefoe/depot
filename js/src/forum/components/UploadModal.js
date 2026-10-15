@@ -166,7 +166,7 @@ export default class UploadModal extends FormModal {
               <input
                 id="depot-repo"
                 className="FormControl"
-                placeholder="owner/repository"
+                placeholder={extractText(t('upload.repo_placeholder'))}
                 value={this.repo}
                 oninput={(e) => (this.repo = e.target.value.trim())}
               />

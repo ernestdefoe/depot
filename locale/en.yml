@@ -234,6 +234,7 @@ ernestdefoe-depot:
       link_label: Download link
       link_help: Depot counts the clicks and sends people to this address.
       repo_label: Repository
+      repo_placeholder: owner/repository
       repo_help: Each new GitHub release becomes a version here, with its release notes as the changelog.
       name_label: Name
       category_label: Category
