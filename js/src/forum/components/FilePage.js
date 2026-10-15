@@ -168,14 +168,23 @@ export default class FilePage extends Page {
   controls(file) {
     const edit = (onsave) => app.modal.show(EditFileModal, { file, onsave });
     return (
-      <Dropdown buttonClassName="Button" icon="fas fa-ellipsis-h" label={t('file.controls')} accessibleToggleLabel={t('file.controls')} menuClassName="Dropdown-menu--right">
+      <Dropdown
+        buttonClassName="Button"
+        icon="fas fa-ellipsis-h"
+        label={t('file.controls')}
+        accessibleToggleLabel={t('file.controls')}
+        menuClassName="Dropdown-menu--right"
+      >
         {file.canEdit ? (
           <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
             {t('file.new_version')}
           </Button>
         ) : null}
         {file.canEdit ? (
-          <Button icon="fas fa-pen" onclick={() => edit((slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()))}>
+          <Button
+            icon="fas fa-pen"
+            onclick={() => edit((slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()))}
+          >
             {t('file.edit')}
           </Button>
         ) : null}
@@ -659,25 +668,31 @@ export default class FilePage extends Page {
     const v = file.versions[0];
     const total30 = file.trend.reduce((a, b) => a + b, 0);
     const u = file.user;
+    const product = file.source === 'product';
 
     return [
-      file.source === 'product' ? this.productCard(file) : file.source === 'github' ? this.installCard(file) : v ? this.downloadCard(file, v) : null,
+      product ? this.productCard(file) : file.source === 'github' ? this.installCard(file) : v ? this.downloadCard(file, v) : null,
 
       <div className="DepotSideCard">
-        <div className="DepotSideCard-row">
-          <div>
-            <b className="DepotSideCard-big">{number(file.downloads)}</b>
-            <span className="Depot-dim">
-              {file.source === 'product' ? t('file.total_sites') : file.package ? t('file.total_installs') : t('file.total_downloads')}
-            </span>
+        {/* A product is licensed, not downloaded: no trend, and no count until there is one, since a zero reads as "nobody uses this". */}
+        {!product || file.downloads > 0 ? (
+          <div className="DepotSideCard-row">
+            <div>
+              <b className="DepotSideCard-big">{number(file.downloads)}</b>
+              <span className="Depot-dim">
+                {product ? t('file.total_sites') : file.package ? t('file.total_installs') : t('file.total_downloads')}
+              </span>
+            </div>
+            {!product ? (
+              <div className="DepotSideCard-trend">
+                {Sparkline({ values: file.trend, width: 120, height: 36 })}
+                <span className="Depot-dim">{t('file.last_30', { count: number(total30) })}</span>
+              </div>
+            ) : null}
           </div>
-          <div className="DepotSideCard-trend">
-            {Sparkline({ values: file.trend, width: 120, height: 36 })}
-            <span className="Depot-dim">{t('file.last_30', { count: number(total30) })}</span>
-          </div>
-        </div>
+        ) : null}
         <dl className="DepotStats">
-          {v && !file.package && file.source !== 'product' ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
+          {v && !file.package && !product ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
           <dt>{t('file.first_released')}</dt>
           <dd>{shortDate(file.firstReleased || file.created)}</dd>
           <dt>{t('file.versions')}</dt>

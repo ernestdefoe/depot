@@ -32,11 +32,11 @@ class ProductCatalog
 
     /**
      * @param array{
-     *   title: string, tagline?: string|null, description?: string|null,
+     *   title: string, slug?: string, tagline?: string|null, description?: string|null,
      *   category: array{slug: string, name: string, color?: string|null, icon?: string|null},
      *   user_id?: int|null, tiers: array<int, array{name: string, cents: int, currency: string, interval: string|null}>,
      *   buy_url: string, repo?: string|null, licence?: string|null, game?: string|null, compat?: string[],
-     *   installs?: int, screenshots?: string[], featured?: bool
+     *   installs?: int, screenshots?: string[], featured?: bool, icon?: array{name?: string, color?: string, backgroundColor?: string}|null
      * } $data
      */
     public function put(string $key, array $data): File
@@ -45,7 +45,7 @@ class ProductCatalog
 
         $file->title = mb_substr($data['title'], 0, 120);
         if (! $file->exists) {
-            $file->slug = $this->slug($file->title);
+            $file->slug = $this->slug($data['slug'] ?? $file->title);
             $file->approved_at = Carbon::now();
             $file->user_id = $data['user_id'] ?? null;
         }
@@ -64,6 +64,9 @@ class ProductCatalog
         $file->game = $data['game'] ?? $file->game ?? 'Flarum';
         $file->compat = $data['compat'] ?? $file->compat ?? ['2.x'];
         $file->external_downloads = max(0, (int) ($data['installs'] ?? $file->external_downloads));
+        if (array_key_exists('icon', $data)) {
+            $file->icon = File::cleanIcon($data['icon']);
+        }
         $file->save();
 
         // Screenshots are added once: the store owns them, and re-adding them

@@ -15,6 +15,7 @@ export default class FileCard extends Component {
   view() {
     const { file, mode } = this.attrs;
     const v = file.version || {};
+    const product = file.source === 'product';
     const fresh = daysAgo(v.date) <= 7;
     const href = app.route('depot.file', { slug: file.slug });
     const pending = !file.approved ? <span className="Depot-pill Depot-pill--warn">{t('card.pending')}</span> : null;
@@ -44,10 +45,13 @@ export default class FileCard extends Component {
             </div>
           </div>
           <div className="DepotCard-foot">
-            <span className="Depot-metric">
-              <Icon name="fas fa-download" /> <b>{compact(file.downloads)}</b>
-            </span>
-            {Sparkline({ values: file.trend, width: 64, height: 20 })}
+            {/* A product counts licensed sites, with no daily trend, and no zero. */}
+            {!product || file.downloads > 0 ? (
+              <span className="Depot-metric">
+                <Icon name={product ? 'fas fa-server' : 'fas fa-download'} /> <b>{compact(file.downloads)}</b>
+              </span>
+            ) : null}
+            {!product ? Sparkline({ values: file.trend, width: 64, height: 20 }) : null}
             <span className="Depot-metric Depot-metric--end">
               {file.ratings ? (
                 [Stars({ value: file.rating }), <b>{file.rating.toFixed(1)}</b>]
@@ -84,13 +88,14 @@ export default class FileCard extends Component {
           </div>
         </div>
         <div className="DepotRow-trend">
-          {Sparkline({ values: file.trend, width: 88, height: 26 })}
-          <span className="Depot-dim">{t('card.last_30_days')}</span>
+          {!product ? [Sparkline({ values: file.trend, width: 88, height: 26 }), <span className="Depot-dim">{t('card.last_30_days')}</span>] : null}
         </div>
         <div className="DepotRow-stats">
-          <span className="DepotRow-downloads">
-            <Icon name="fas fa-download" /> {number(file.downloads)}
-          </span>
+          {!product || file.downloads > 0 ? (
+            <span className="DepotRow-downloads">
+              <Icon name={product ? 'fas fa-server' : 'fas fa-download'} /> {number(file.downloads)}
+            </span>
+          ) : null}
           {file.ratings ? (
             <span className="Depot-metric">
               {Stars({ value: file.rating })} <span className="Depot-dim">{file.rating.toFixed(1)}</span>

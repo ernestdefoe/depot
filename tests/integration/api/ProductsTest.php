@@ -50,6 +50,21 @@ class ProductsTest extends TestCase
     }
 
     #[Test]
+    public function a_product_keeps_its_icon_and_a_hostile_one_is_dropped(): void
+    {
+        $catalog = $this->app()->getContainer()->make(ProductCatalog::class);
+        $base = ['title' => 'Iconic', 'category' => ['slug' => 'premium', 'name' => 'Premium'], 'tiers' => [], 'buy_url' => 'https://store.example/i'];
+
+        $catalog->put('teststore:2', $base + ['icon' => ['name' => 'fas fa-gem', 'color' => '#fff', 'backgroundColor' => '#d97706']]);
+        $catalog->put('teststore:3', $base + ['icon' => ['name' => 'fas fa-gem" onmouseover="x', 'color' => 'red;background:url(x)']]);
+        $catalog->put('teststore:4', $base + ['icon' => ['name' => 'fas fa-gem', 'color' => 'red;background:url(x)']]);
+
+        $this->assertSame(['name' => 'fas fa-gem', 'color' => '#fff', 'backgroundColor' => '#d97706'], File::query()->where('product_key', 'teststore:2')->first()->icon);
+        $this->assertSame([], File::query()->where('product_key', 'teststore:3')->first()->icon);
+        $this->assertSame(['name' => 'fas fa-gem', 'color' => null, 'backgroundColor' => null], File::query()->where('product_key', 'teststore:4')->first()->icon);
+    }
+
+    #[Test]
     public function putting_it_again_updates_the_same_file(): void
     {
         $this->put();

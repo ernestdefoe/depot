@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $package
  * @property string|null $product_key
  * @property array|null $price_tiers
+ * @property array|null $icon
  * @property string|null $buy_url
  * @property int $external_downloads
  * @property \Carbon\Carbon|null $stats_synced_at
@@ -68,6 +69,7 @@ class File extends AbstractModel
     protected $casts = [
         'compat' => 'array',
         'price_tiers' => 'array',
+        'icon' => 'array',
         'fields' => 'array',
         'requires' => 'array',
         'install' => 'array',
@@ -217,5 +219,23 @@ class File extends AbstractModel
     public function scopeLockedTeasersFor(Builder $query, User $actor): void
     {
         $query->whereNotNull('depot_files.approved_at')->whereIn('depot_files.category_id', Category::lockedFor($actor) ?: [0]);
+    }
+
+    /**
+     * A Flarum extension icon (composer.json `extra.flarum-extension.icon`),
+     * kept only if every part is plainly what it claims to be: Font Awesome
+     * class names and CSS colours, nothing that could carry anything else.
+     *
+     * @return array{name: string, color: string|null, backgroundColor: string|null}|array{}
+     */
+    public static function cleanIcon(mixed $icon): array
+    {
+        $name = is_array($icon) ? trim((string) ($icon['name'] ?? '')) : '';
+        if (! preg_match('/^(fa[srlbd]?|fa-(solid|regular|brands|light|duotone)) fa-[a-z0-9-]+$/', $name)) {
+            return [];
+        }
+        $colour = fn ($c) => is_string($c) && preg_match('/^(#[0-9a-f]{3,8}|[a-z]{3,20})$/i', trim($c)) ? trim($c) : null;
+
+        return ['name' => $name, 'color' => $colour($icon['color'] ?? null), 'backgroundColor' => $colour($icon['backgroundColor'] ?? null)];
     }
 }

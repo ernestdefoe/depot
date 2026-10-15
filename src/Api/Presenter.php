@@ -123,6 +123,7 @@ class Presenter
             'buyUrl' => $f->isProduct() ? $f->buy_url : null,
             'host' => $v && $v->url ? parse_url($v->url, PHP_URL_HOST) : null,
             'cover' => $cover ? $this->shot($cover) : null,
+            'icon' => $f->icon ?: null,
             'trend' => $trend ?? array_fill(0, self::TREND_DAYS, 0),
             'featured' => $f->featured,
             'approved' => $f->approved_at !== null,

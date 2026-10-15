@@ -91,19 +91,25 @@ export function CategoryLabels({ slug, link = true }) {
 
 /**
  * Inline style for a file's cover: its first screenshot, or — for a file with
- * none — its category's colour, with the category icon drawn over it by CSS.
+ * none — its own icon, or its category's, on that icon's background colour.
  */
 export function coverStyle(file, size = 'thumb') {
   if (file.cover) return { backgroundImage: `url(${file.cover[size] || file.cover.thumb})` };
   const c = rootOf(category(file.category));
-  return { '--cover-color': (c && c.color) || 'var(--primary-color)' };
+  return { '--cover-color': (file.icon && file.icon.backgroundColor) || (c && c.color) || 'var(--primary-color)' };
 }
 
 export function Cover({ file, className = '', size = 'thumb', children }) {
   const c = rootOf(category(file.category));
   return (
     <div className={`${className} ${file.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(file, size)}>
-      {!file.cover ? <Icon name={(c && c.icon) || 'fas fa-box-open'} className="Depot-cover-icon" /> : null}
+      {!file.cover ? (
+        <Icon
+          name={(file.icon && file.icon.name) || (c && c.icon) || 'fas fa-box-open'}
+          className="Depot-cover-icon"
+          style={file.icon && file.icon.color ? { color: file.icon.color } : undefined}
+        />
+      ) : null}
       {children}
     </div>
   );
