@@ -6,11 +6,25 @@ import Model from 'flarum/common/Model';
 import Notification from 'flarum/forum/components/Notification';
 
 /*
- * The pages load on demand, in one chunk, so the forum's every-page bundle
- * carries only this file: the routes, one sidebar link and the notification
- * wiring.
+ * The pages load on demand, in one chunk with their own stylesheet, so the
+ * forum's every-page bundle carries only this file — the routes, one sidebar
+ * link and the notification wiring — and forum.css carries nothing.
  */
-const page = (name) => () => import('./depot').then((pages) => ({ default: pages[name] }));
+import stylesheet from './stylesheet';
+
+let styles;
+/** The page styles, once, resolved when they have arrived so nothing paints unstyled. */
+function loadStyles() {
+  return (styles ??= new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `${app.forum.attribute('baseUrl')}/downloads/depot.css?v=${stylesheet}`;
+    link.onload = link.onerror = resolve;
+    document.head.appendChild(link);
+  }));
+}
+
+const page = (name) => () => Promise.all([import('./depot'), loadStyles()]).then(([pages]) => ({ default: pages[name] }));
 
 /*
  * The notification subject's model. Not optional: the store builds every

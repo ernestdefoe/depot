@@ -19,7 +19,7 @@
 }
 
 .Depot-dim { color: var(--muted-color); }
-.DepotSpotlight-art, .DepotHero-art, .DepotTile-art, .DepotCard-art, .DepotLocked-art, .DepotFileHero-backdrop, .DepotDownload-art, .DepotRow-thumb, .DepotGallery-item, .DepotLightbox-stage, .DepotLightbox-strip button, .DepotSpotlight-thumb, .DepotMore-art, .DepotFileHero-cover {
+.DepotSpotlight-art, .DepotTile-art, .DepotCard-art, .DepotFileHero-backdrop, .DepotDownload-art, .DepotRow-thumb, .DepotGallery-item, .DepotLightbox-stage, .DepotLightbox-strip button, .DepotSpotlight-thumb, .DepotMore-art, .DepotFileHero-cover {
   image-rendering: pixelated;
   background-size: cover;
   background-position: center;
@@ -286,7 +286,6 @@
   background: var(--hero-tint);
   margin-top: calc(-1 * var(--page-top-padding, 0px));
 }
-.DepotHero-art { position: absolute; inset: 0; opacity: 0.55; }
 .DepotHero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, var(--hero-tint) 10%, transparent 90%); opacity: 0.85; }
 .DepotHero-inner { position: relative; z-index: 1; padding-top: 36px; padding-bottom: 32px; }
 .DepotHero-up { color: #fff; opacity: 0.85; font-weight: 600; font-size: 13px; &:hover { color: #fff; opacity: 1; } }
@@ -474,7 +473,6 @@
   display: grid;
   min-height: 140px;
 }
-.DepotLocked-art { position: absolute; inset: -12px; filter: blur(10px) saturate(0.6); opacity: 0.6; }
 .DepotLocked-text {
   position: relative;
   display: flex;

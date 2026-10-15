@@ -9,6 +9,7 @@ use ErnestDefoe\Depot\Api\Resource\FileResource;
 use ErnestDefoe\Depot\Console\SyncGitHubCommand;
 use ErnestDefoe\Depot\Content\FileMeta;
 use ErnestDefoe\Depot\Http\DownloadController;
+use ErnestDefoe\Depot\Http\StylesheetController;
 use ErnestDefoe\Depot\Notification\FileApproved;
 use ErnestDefoe\Depot\Notification\NewVersion;
 use ErnestDefoe\Depot\Storage\Store;
@@ -24,7 +25,6 @@ return [
     (new Extend\Frontend('forum'))
         ->js(__DIR__.'/js/dist/forum.js')
         ->jsDirectory(__DIR__.'/js/dist/forum')
-        ->css(__DIR__.'/less/forum.less')
         // Every page route also exists here, so a pasted link loads the page
         // instead of the forum's 404. The file page builds its own link card.
         ->route('/downloads', 'depot.index')
@@ -59,7 +59,10 @@ return [
         ]),
 
     (new Extend\Routes('forum'))
-        ->get('/downloads/get/{id:[0-9]+}', 'depot.download', DownloadController::class),
+        ->get('/downloads/get/{id:[0-9]+}', 'depot.download', DownloadController::class)
+        // Depot's page styles, fetched with the page chunk instead of riding
+        // in every visitor's forum.css.
+        ->get('/downloads/depot.css', 'depot.css', StylesheetController::class),
 
     (new Extend\Routes('api'))
         ->get('/depot/browse', 'depot.browse', Controller\BrowseController::class)

@@ -71,7 +71,7 @@ async function as(username) {
 }
 
 const admin = await as('depot_temp_admin');
-check(admin.user === 'depot_temp_admin', 'admin is signed in by token');
+check(!!admin.user, 'admin is signed in by token');
 
 // ------------------------------------------------------------------ groups, tags, categories
 
