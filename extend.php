@@ -37,6 +37,9 @@ return [
 
     new Extend\Locales(__DIR__.'/locale'),
 
+    // Store extensions add their ProductAccess classes here (Extend\Products).
+    (new Extend\ServiceProvider())->register(ErnestDefoe\Depot\Products\ProductServiceProvider::class),
+
     (new Extend\View())->namespace('ernestdefoe-depot', __DIR__.'/views'),
 
     /*

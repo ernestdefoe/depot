@@ -2,7 +2,7 @@ import app from 'flarum/forum/app';
 import Icon from 'flarum/common/components/Icon';
 import Tooltip from 'flarum/common/components/Tooltip';
 import stringToColor from 'flarum/common/utils/stringToColor';
-import { category, rootOf, number } from '../depot-api';
+import { category, rootOf, number, money, cheapest } from '../depot-api';
 
 export const t = (key, params) => app.translator.trans(`ernestdefoe-depot.forum.${key}`, params);
 
@@ -134,3 +134,20 @@ export const Count = ({ icon, value, label }) => (
     <Icon name={icon} /> {number(value)}
   </span>
 );
+
+/** A tier's price with its period: "$4 a month", "$39 a year", "$99". */
+export function price(tier) {
+  const amount = money(tier.cents, tier.currency);
+  return tier.interval ? t(`price.per_${tier.interval}`, { price: amount }) : amount;
+}
+
+/** "From $4 a month" for a product's card; nothing for anything else. */
+export function PriceBadge({ file }) {
+  const low = cheapest(file.tiers);
+  if (!low) return null;
+  return (
+    <span className="Depot-pill Depot-pill--price">
+      <Icon name="fas fa-tag" /> {file.tiers.length > 1 ? t('price.from', { price: price(low) }) : price(low)}
+    </span>
+  );
+}

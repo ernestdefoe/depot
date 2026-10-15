@@ -43,6 +43,11 @@ class DownloadController implements RequestHandlerInterface
         $actor->assertPermission($actor->hasPermission('depot.view') && $actor->hasPermission('depot.download'));
 
         $version = Version::query()->findOrFail((int) Arr::get($request->getQueryParams(), 'id'));
+
+        // A store's product release has nothing to download here.
+        if (! $version->path && ! $version->url) {
+            return new Response('php://memory', 404);
+        }
         File::query()->visibleTo($actor)->findOrFail($version->file_id);
 
         $ip = (string) ($request->getAttribute('ipAddress') ?? Arr::get($request->getServerParams(), 'REMOTE_ADDR', ''));

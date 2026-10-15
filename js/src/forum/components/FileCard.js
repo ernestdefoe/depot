@@ -4,7 +4,7 @@ import Link from 'flarum/common/components/Link';
 import Icon from 'flarum/common/components/Icon';
 import humanTime from 'flarum/common/helpers/humanTime';
 import { compact, number, daysAgo } from '../depot-api';
-import { t, Sparkline, Stars, UserChip, CategoryLabels, SourceBadge, Cover } from './bits';
+import { t, Sparkline, Stars, UserChip, CategoryLabels, SourceBadge, Cover, PriceBadge } from './bits';
 
 /**
  * One file in a list, as a card (grid) or a row (list). The same facts in
@@ -33,6 +33,7 @@ export default class FileCard extends Component {
           <div className="DepotCard-body">
             <span className="DepotCard-labels">
               {CategoryLabels({ slug: file.category, link: false })}
+              {PriceBadge({ file })}
               {pending}
             </span>
             <h3 className="DepotCard-title">{file.title}</h3>
@@ -67,6 +68,7 @@ export default class FileCard extends Component {
             {file.title} {v.version ? <span className="DepotRow-version">v{v.version}</span> : null}
             {fresh ? <span className="Depot-pill Depot-pill--fresh">{t('card.updated_badge')}</span> : null}
             {pending}
+            {PriceBadge({ file })}
             {SourceBadge({ file })}
           </h3>
           {file.tagline ? <p className="DepotRow-tagline">{file.tagline}</p> : null}

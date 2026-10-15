@@ -21,6 +21,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $source
  * @property string|null $repo
  * @property string|null $package
+ * @property string|null $product_key
+ * @property array|null $price_tiers
+ * @property string|null $buy_url
  * @property int $external_downloads
  * @property \Carbon\Carbon|null $stats_synced_at
  * @property string|null $game
@@ -64,6 +67,7 @@ class File extends AbstractModel
 
     protected $casts = [
         'compat' => 'array',
+        'price_tiers' => 'array',
         'fields' => 'array',
         'requires' => 'array',
         'install' => 'array',
@@ -156,7 +160,18 @@ class File extends AbstractModel
 
     public function canEdit(User $actor): bool
     {
+        // A store's product is edited in the store; its next sync would undo
+        // anything changed here.
+        if ($this->isProduct()) {
+            return false;
+        }
+
         return $this->isOwnedBy($actor) || $actor->hasPermission('depot.moderate');
+    }
+
+    public function isProduct(): bool
+    {
+        return $this->source === 'product';
     }
 
     /**

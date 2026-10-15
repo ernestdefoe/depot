@@ -1145,3 +1145,19 @@ a.DepotReply:hover { text-decoration: none; color: var(--text-color); }
   .Depot-user { min-width: 0; .username { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
   > .Depot-dim { white-space: nowrap; flex: none; }
 }
+
+// ------------------------------------------------------------------ products
+
+.Depot-pill--price { background: fade(#c47d12, 14%); color: var(--depot-warn); }
+.DepotTiers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--control-bg); font-size: 13px; }
+  b { color: var(--heading-color); font-variant-numeric: tabular-nums; }
+}
+.DepotBuy { justify-content: center; }
+.DepotOwned { display: flex; gap: 8px; align-items: center; font-weight: 700; color: var(--depot-fresh); }

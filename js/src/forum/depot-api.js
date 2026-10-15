@@ -53,3 +53,17 @@ export function compact(n) {
 }
 
 export const daysAgo = (iso) => (iso ? Math.floor((Date.now() - new Date(iso)) / 86400000) : Infinity);
+
+/** "$4.00" in the viewer's own locale, from cents and an ISO currency. */
+export function money(cents, currency) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD', minimumFractionDigits: cents % 100 ? 2 : 0 }).format(
+      cents / 100
+    );
+  } catch (e) {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}
+
+/** The cheapest tier, for a card's price. */
+export const cheapest = (tiers) => (tiers || []).reduce((low, t) => (!low || t.cents < low.cents ? t : low), null);

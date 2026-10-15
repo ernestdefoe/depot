@@ -118,6 +118,9 @@ class Presenter
             // A Composer package is installed, not downloaded: the page shows
             // the install command and its count is Packagist's.
             'package' => $f->package,
+            // A store's product: sold, not downloaded.
+            'tiers' => $f->isProduct() ? ($f->price_tiers ?: []) : null,
+            'buyUrl' => $f->isProduct() ? $f->buy_url : null,
             'host' => $v && $v->url ? parse_url($v->url, PHP_URL_HOST) : null,
             'cover' => $cover ? $this->shot($cover) : null,
             'trend' => $trend ?? array_fill(0, self::TREND_DAYS, 0),
@@ -199,12 +202,26 @@ class Presenter
             'distribution' => array_map(fn ($star) => (int) ($distribution[$star] ?? 0), [5, 4, 3, 2, 1]),
             'discussion' => $this->discussion($f, $actor),
             'author' => $author ? ['files' => (int) $author->files, 'downloads' => (int) $author->downloads] : null,
+            'access' => $f->isProduct() ? $this->access($f, $actor) : null,
             'canEdit' => $f->canEdit($actor),
             'canModerate' => $actor->hasPermission('depot.moderate'),
             'canReview' => $actor->exists && ! $f->isOwnedBy($actor) && $actor->hasPermission('depot.review'),
             'canDownload' => $actor->hasPermission('depot.download'),
             'updateUrl' => $this->url->to('api')->route('depot.latest', ['slug' => $f->slug]),
         ];
+    }
+
+    /** What the store says about this viewer and the product: do they own it, and how do they install it. */
+    private function access(File $f, User $actor): ?array
+    {
+        foreach (resolve('depot.product_access') as $class) {
+            $answer = resolve($class)->access([$f], $actor)[$f->product_key] ?? null;
+            if ($answer) {
+                return ['owned' => (bool) $answer['owned'], 'install' => array_values($answer['install'] ?? []), 'manageUrl' => $answer['manageUrl'] ?? null];
+            }
+        }
+
+        return null;
     }
 
     public function version(Version $v, ?string $repo = null): array

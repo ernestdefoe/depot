@@ -9,7 +9,7 @@ import Tooltip from 'flarum/common/components/Tooltip';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import humanTime from 'flarum/common/helpers/humanTime';
 import { api, state, bytes, number, compact } from '../depot-api';
-import { t, Sparkline, Stars, Avatar, UserChip, CategoryLabels, SourceBadge, Cover, coverStyle } from './bits';
+import { t, Sparkline, Stars, Avatar, UserChip, CategoryLabels, SourceBadge, Cover, coverStyle, price, PriceBadge } from './bits';
 import DownloadModal, { startDownload } from './DownloadModal';
 import LightboxModal from './LightboxModal';
 import ReviewModal from './ReviewModal';
@@ -136,6 +136,7 @@ export default class FilePage extends Page {
             <div className="DepotFileHero-labels">
               {CategoryLabels({ slug: file.category })}
               {SourceBadge({ file })}
+              {PriceBadge({ file })}
               {file.featured ? (
                 <span className="Depot-badge">
                   <Icon name="fas fa-star" /> {t('file.featured')}
@@ -158,43 +159,36 @@ export default class FilePage extends Page {
               ) : null}
             </div>
           </div>
-          {file.canEdit ? <div className="DepotFileHero-controls">{this.controls(file)}</div> : null}
+          {file.canEdit || file.canModerate ? <div className="DepotFileHero-controls">{this.controls(file)}</div> : null}
         </div>
       </header>
     );
   }
 
   controls(file) {
+    const edit = (onsave) => app.modal.show(EditFileModal, { file, onsave });
     return (
-      <Dropdown
-        buttonClassName="Button"
-        icon="fas fa-ellipsis-h"
-        label={t('file.controls')}
-        accessibleToggleLabel={t('file.controls')}
-        menuClassName="Dropdown-menu--right"
-      >
-        <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
-          {t('file.new_version')}
-        </Button>
-        <Button
-          icon="fas fa-pen"
-          onclick={() =>
-            app.modal.show(EditFileModal, {
-              file,
-              onsave: (slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()),
-            })
-          }
-        >
-          {t('file.edit')}
-        </Button>
+      <Dropdown buttonClassName="Button" icon="fas fa-ellipsis-h" label={t('file.controls')} accessibleToggleLabel={t('file.controls')} menuClassName="Dropdown-menu--right">
+        {file.canEdit ? (
+          <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
+            {t('file.new_version')}
+          </Button>
+        ) : null}
+        {file.canEdit ? (
+          <Button icon="fas fa-pen" onclick={() => edit((slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()))}>
+            {t('file.edit')}
+          </Button>
+        ) : null}
         {file.canModerate ? (
           <Button icon={file.featured ? 'far fa-star' : 'fas fa-star'} onclick={() => this.act(`files/${file.id}/feature`)}>
             {file.featured ? t('file.unfeature') : t('file.feature')}
           </Button>
         ) : null}
-        <Button icon="far fa-trash-alt" onclick={() => this.remove(file)}>
-          {t('file.delete')}
-        </Button>
+        {file.canEdit ? (
+          <Button icon="far fa-trash-alt" onclick={() => this.remove(file)}>
+            {t('file.delete')}
+          </Button>
+        ) : null}
       </Dropdown>
     );
   }
@@ -667,13 +661,15 @@ export default class FilePage extends Page {
     const u = file.user;
 
     return [
-      file.source === 'github' ? this.installCard(file) : v ? this.downloadCard(file, v) : null,
+      file.source === 'product' ? this.productCard(file) : file.source === 'github' ? this.installCard(file) : v ? this.downloadCard(file, v) : null,
 
       <div className="DepotSideCard">
         <div className="DepotSideCard-row">
           <div>
             <b className="DepotSideCard-big">{number(file.downloads)}</b>
-            <span className="Depot-dim">{file.package ? t('file.total_installs') : t('file.total_downloads')}</span>
+            <span className="Depot-dim">
+              {file.source === 'product' ? t('file.total_sites') : file.package ? t('file.total_installs') : t('file.total_downloads')}
+            </span>
           </div>
           <div className="DepotSideCard-trend">
             {Sparkline({ values: file.trend, width: 120, height: 36 })}
@@ -681,7 +677,7 @@ export default class FilePage extends Page {
           </div>
         </div>
         <dl className="DepotStats">
-          {v && !file.package ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
+          {v && !file.package && file.source !== 'product' ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
           <dt>{t('file.first_released')}</dt>
           <dd>{shortDate(file.firstReleased || file.created)}</dd>
           <dt>{t('file.versions')}</dt>
@@ -798,6 +794,65 @@ export default class FilePage extends Page {
             <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers) })}
           </span>
         </div>
+      </div>
+    );
+  }
+
+  /**
+   * A store's product: its prices and a way to buy it, or — for someone who
+   * already owns it — how to install it, in the store's own words.
+   */
+  productCard(file) {
+    const access = file.access || {};
+    return (
+      <div className="DepotSideCard DepotSideCard--download DepotSideCard--product">
+        {access.owned
+          ? [
+              <div className="DepotOwned">
+                <Icon name="fas fa-check-circle" /> {t('file.owned')}
+              </div>,
+              ...(access.install || []).map((line, i) => (
+                <div className="Depot-copy Depot-copy--small">
+                  <code>{line}</code>
+                  <Button
+                    className="Button Button--icon"
+                    icon={this.copied === `i${i}` ? 'fas fa-check' : 'far fa-copy'}
+                    aria-label={t('download.copy')}
+                    onclick={() => this.copy(line, `i${i}`)}
+                  />
+                </div>
+              )),
+              access.manageUrl ? (
+                <a className="Button" href={access.manageUrl}>
+                  {t('file.manage_licence')}
+                </a>
+              ) : null,
+            ]
+          : [
+              <h4 className="DepotSideCard-label">{t('file.get_it')}</h4>,
+              <ul className="DepotTiers">
+                {(file.tiers || []).map((tier) => (
+                  <li>
+                    <span>{tier.name}</span>
+                    <b>{price(tier)}</b>
+                  </li>
+                ))}
+              </ul>,
+              file.buyUrl ? (
+                <a className="Button Button--primary Button--large DepotBuy" href={file.buyUrl}>
+                  <Icon name="fas fa-tag" /> {t('file.buy')}
+                </a>
+              ) : null,
+            ]}
+        {app.session.user ? (
+          <Button
+            className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`}
+            icon={file.watching ? 'fas fa-bell' : 'far fa-bell'}
+            onclick={() => this.watch(file)}
+          >
+            {file.watching ? t('file.watching') : t('file.watch')}
+          </Button>
+        ) : null}
       </div>
     );
   }

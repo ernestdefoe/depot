@@ -115,7 +115,7 @@ export default class Spotlight extends Component {
               <div className="DepotSpotlight-side">
                 <div className="DepotSpotlight-stat">
                   <b>{compact(file.downloads)}</b>
-                  <span>{file.package ? t('spotlight.installs') : t('spotlight.downloads')}</span>
+                  <span>{file.source === 'product' ? t('spotlight.sites') : file.package ? t('spotlight.installs') : t('spotlight.downloads')}</span>
                 </div>
                 {file.ratings ? (
                   <div className="DepotSpotlight-stat">
