@@ -1,5 +1,6 @@
 /*
- * Cover art for the prototype: small pixel landscapes drawn once on a canvas
+ * Demo screenshots for tools/seed-demo.mjs, injected into a page — never
+ * shipped in the extension's bundle. Cover art for the prototype: small pixel landscapes drawn once on a canvas
  * and cached as data URLs. The real extension shows uploaded screenshots;
  * this only stands in for them so the layout can be judged with pictures in
  * it rather than grey boxes.
@@ -145,11 +146,19 @@ function draw(key) {
   return c.toDataURL();
 }
 
-/** A data URL for a scene, drawn the first time it is asked for. */
-export default function art(key) {
-  if (!key) key = 'meadow';
-  return cache[key] || (cache[key] = draw(key));
-}
-
-/** Inline style for an element that shows a scene as its background. */
-export const artStyle = (key) => ({ backgroundImage: `url(${art(key)})` });
+/**
+ * A PNG Blob of a scene at screenshot size, scaled up without smoothing so
+ * it stays crisp pixel art.
+ */
+window.depotDemoShot = async (key, width = 1600) => {
+  const img = new Image();
+  img.src = cache[key] || (cache[key] = draw(key));
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = width;
+  c.height = Math.round((width * H) / W);
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.drawImage(img, 0, 0, c.width, c.height);
+  return new Promise((resolve) => c.toBlob(resolve, 'image/png'));
+};

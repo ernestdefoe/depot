@@ -1074,3 +1074,76 @@
 .Depot-labels .Depot-label:not(.Depot-label--outline):hover { color: #fff; }
 .Depot-labels .Depot-label--outline,
 .Depot-labels .Depot-label--outline:hover { color: var(--label-color); }
+
+// ------------------------------------------------------------------ real-data additions
+
+// A file with no screenshots: its category's colour, with the category icon.
+.Depot-cover--empty {
+  position: relative;
+  background: linear-gradient(135deg, var(--cover-color, var(--primary-color)), color-mix(in srgb, var(--cover-color, var(--primary-color)) 55%, #000));
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+.Depot-cover-icon { font-size: 28px; }
+.DepotRow-thumb .Depot-cover-icon, .DepotMore-art .Depot-cover-icon { font-size: 20px; }
+.DepotSpotlight-art.Depot-cover--empty { display: block; }
+.DepotCard-art, .DepotRow-thumb, .DepotFileHero-cover, .DepotMore-art, .DepotDownload-art, .DepotGallery-item, .DepotLightbox-strip button { image-rendering: auto; }
+.DepotCard-labels { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+
+.DepotFileHero-controls { margin-left: auto; align-self: flex-start; .Button { background: rgba(255, 255, 255, 0.14); color: #fff; } }
+.DepotMoreButton { display: flex; justify-content: center; margin-top: 20px; }
+.DepotDrop-hash.is-error { color: var(--alert-error-color, #c0392b); }
+.DepotTimeline-actions { display: inline-flex; gap: 6px; align-items: center; }
+
+.DepotReview-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.DepotReview-replyEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  > div { display: flex; gap: 6px; }
+}
+
+.DepotPost {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--depot-line);
+  header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; b { color: var(--heading-color); } }
+  .Post-body { font-size: 14px; line-height: 1.6; }
+}
+a.DepotReply:hover { text-decoration: none; color: var(--text-color); }
+
+.DepotLightbox-stage {
+  display: grid;
+  place-items: center;
+  aspect-ratio: auto;
+  min-height: 240px;
+  img { display: block; max-width: 100%; max-height: 75vh; margin: 0 auto; }
+}
+
+.DepotStarPick {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  button {
+    border: 0;
+    background: none;
+    font-size: 30px;
+    color: var(--depot-star);
+    cursor: pointer;
+    padding: 2px;
+    transition: transform 0.1s;
+    &:hover { transform: scale(1.12); }
+  }
+}
+.DepotStarPick-label { text-align: center; margin: 4px 0 14px; }
+
+.DepotChanges-group--added, .DepotChanges-group--changed, .DepotChanges-group--fixed {
+  &.Form-group { display: block; .DepotChanges-kind { display: inline-flex; margin-bottom: 6px; } }
+}
+
+.DepotCard-meta {
+  min-width: 0;
+  .Depot-user { min-width: 0; .username { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+  > .Depot-dim { white-space: nowrap; flex: none; }
+}

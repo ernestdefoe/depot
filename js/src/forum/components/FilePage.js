@@ -3,14 +3,18 @@ import Page from 'flarum/common/components/Page';
 import PageStructure from 'flarum/forum/components/PageStructure';
 import Button from 'flarum/common/components/Button';
 import SplitDropdown from 'flarum/common/components/SplitDropdown';
+import Dropdown from 'flarum/common/components/Dropdown';
 import Icon from 'flarum/common/components/Icon';
 import Tooltip from 'flarum/common/components/Tooltip';
+import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import humanTime from 'flarum/common/helpers/humanTime';
-import { artStyle } from '../art';
-import { fileBySlug, hydrate, latest, users, bytes, number, compact, files, category } from '../data';
-import { t, Sparkline, Stars, Avatar, UserChip, CategoryLabels, SourceBadge } from './bits';
-import DownloadModal from './DownloadModal';
+import { api, state, bytes, number, compact } from '../depot-api';
+import { t, Sparkline, Stars, Avatar, UserChip, CategoryLabels, SourceBadge, Cover, coverStyle } from './bits';
+import DownloadModal, { startDownload } from './DownloadModal';
 import LightboxModal from './LightboxModal';
+import ReviewModal from './ReviewModal';
+import VersionModal from './VersionModal';
+import EditFileModal from './EditFileModal';
 
 const shortDate = (d) => dayjs(d).format('ll');
 const TABS = ['overview', 'versions', 'reviews', 'discussion'];
@@ -21,32 +25,57 @@ const KINDS = [
 ];
 
 /**
- * One file.
- *
- * Laid out like a discussion — hero across the top, content on the left, a
- * sidebar on the right — so it reads as part of the forum. The sidebar holds
- * everything needed to decide and download without scrolling: the button,
- * how current it is, how many people use it, and the checksum.
+ * One file. Laid out like a discussion — hero across the top, content on the
+ * left, a sidebar on the right — so it reads as part of the forum. The sidebar
+ * holds everything needed to decide and download without scrolling.
  */
 export default class FilePage extends Page {
   oninit(vnode) {
     super.oninit(vnode);
-    this.tab = TABS.includes(m.route.param('tab')) ? m.route.param('tab') : 'overview';
-    this.watching = false;
-    this.helpful = {};
+    this.tab = 'overview';
     this.starFilter = 0;
     this.open = { 0: true };
+    this.file = null;
+    this.missing = false;
+    this.replying = null;
+    this.load();
+  }
+
+  load() {
+    return api.get('file', { slug: m.route.param('slug') }).then(
+      (file) => {
+        state.categories = file.categories;
+        this.file = file;
+        m.redraw();
+      },
+      () => {
+        this.missing = true;
+        m.redraw();
+      }
+    );
   }
 
   view() {
-    const file = fileBySlug(m.route.param('slug'));
-    if (!file || file.locked) return <PageStructure className="DepotFilePage">{this.missing()}</PageStructure>;
-    hydrate(file);
+    const file = this.file;
+    if (!file) {
+      return <PageStructure className="DepotFilePage">{this.missing ? this.notFound() : <LoadingIndicator display="block" />}</PageStructure>;
+    }
     app.setTitle(file.title);
     app.setTitleCount(0);
 
     return (
       <PageStructure className="DepotFilePage" hero={() => this.hero(file)}>
+        {!file.approved ? (
+          <div className="DepotNotice">
+            <Icon name="fas fa-hourglass-half" />
+            <span>{t('file.pending')}</span>
+            {file.canModerate ? (
+              <Button className="Button Button--small Button--primary" onclick={() => this.act(`files/${file.id}/approve`)}>
+                {t('file.approve')}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="DepotFile">
           <div className="DepotFile-main">
             <nav className="DepotTabs" role="tablist">
@@ -67,12 +96,16 @@ export default class FilePage extends Page {
     );
   }
 
+  act(path, body) {
+    return api.post(path, body).then(() => this.load());
+  }
+
   tabCount(file, tab) {
-    const n = { versions: file.versions.length, reviews: file.ratings, discussion: file.discussionReplies }[tab];
+    const n = { versions: file.versions.length, reviews: file.ratings, discussion: file.discussion && file.discussion.replies }[tab];
     return n ? <span className="DepotTabs-count">{compact(n)}</span> : null;
   }
 
-  missing() {
+  notFound() {
     return (
       <div className="container DepotEmpty">
         <Icon name="fas fa-box-open" />
@@ -85,71 +118,127 @@ export default class FilePage extends Page {
   }
 
   hero(file) {
-    const v = latest(file);
+    const v = file.version || {};
     return (
       <header className="DepotFileHero">
-        <div className="DepotFileHero-backdrop" style={artStyle(file.art)} />
+        <div className={`DepotFileHero-backdrop ${file.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(file, 'thumb')} />
         <div className="Page-container container DepotFileHero-inner">
-          <div className="DepotFileHero-cover" style={artStyle(file.art)} />
+          {Cover({ file, className: 'DepotFileHero-cover' })}
           <div className="DepotFileHero-text">
             <div className="DepotFileHero-labels">
               {CategoryLabels({ slug: file.category })}
               {SourceBadge({ file })}
+              {file.featured ? (
+                <span className="Depot-badge">
+                  <Icon name="fas fa-star" /> {t('file.featured')}
+                </span>
+              ) : null}
             </div>
             <h1 className="DepotFileHero-title">{file.title}</h1>
-            <p className="DepotFileHero-tagline">{file.tagline}</p>
+            {file.tagline ? <p className="DepotFileHero-tagline">{file.tagline}</p> : null}
             <div className="DepotFileHero-meta">
               {UserChip({ user: file.user })}
-              <span>
-                v{v.version} · {t('file.updated', { time: humanTime(v.date) })}
-              </span>
-              <span className="DepotFileHero-rating">
-                {Stars({ value: file.rating })} {file.rating.toFixed(1)} <span className="Depot-dim">({number(file.ratings)})</span>
-              </span>
+              {v.version ? (
+                <span>
+                  v{v.version} · {t('file.updated', { time: humanTime(v.date) })}
+                </span>
+              ) : null}
+              {file.ratings ? (
+                <span className="DepotFileHero-rating">
+                  {Stars({ value: file.rating })} {file.rating.toFixed(1)} <span className="Depot-dim">({number(file.ratings)})</span>
+                </span>
+              ) : null}
             </div>
           </div>
+          {file.canEdit ? <div className="DepotFileHero-controls">{this.controls(file)}</div> : null}
         </div>
       </header>
     );
   }
 
+  controls(file) {
+    return (
+      <Dropdown buttonClassName="Button" icon="fas fa-ellipsis-h" label={t('file.controls')} accessibleToggleLabel={t('file.controls')} menuClassName="Dropdown-menu--right">
+        <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
+          {t('file.new_version')}
+        </Button>
+        <Button
+          icon="fas fa-pen"
+          onclick={() => app.modal.show(EditFileModal, { file, onsave: (slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()) })}
+        >
+          {t('file.edit')}
+        </Button>
+        {file.canModerate ? (
+          <Button icon={file.featured ? 'far fa-star' : 'fas fa-star'} onclick={() => this.act(`files/${file.id}/feature`)}>
+            {file.featured ? t('file.unfeature') : t('file.feature')}
+          </Button>
+        ) : null}
+        <Button icon="far fa-trash-alt" onclick={() => this.remove(file)}>
+          {t('file.delete')}
+        </Button>
+      </Dropdown>
+    );
+  }
+
+  remove(file) {
+    // The same confirm Flarum itself uses before deleting a discussion.
+    if (!confirm(t('file.delete_confirm', { title: file.title }).toString())) return;
+    api.del(`files/${file.id}`).then(() => m.route.set(app.route('depot.index')));
+  }
+
   // ---------------------------------------------------------------- overview
 
   overview(file) {
-    const v = latest(file);
+    const v = file.versions[0];
+    const shots = file.screenshots;
     return (
       <div className="DepotOverview">
-        <div className={`DepotGallery DepotGallery--${Math.min(file.shots.length, 5)}`}>
-          {file.shots.slice(0, 5).map((shot, i) => (
-            <button type="button" className="DepotGallery-item" style={artStyle(shot)} aria-label={t('file.screenshot', { n: i + 1 })} onclick={() => app.modal.show(LightboxModal, { shots: file.shots, index: i, title: file.title })}>
-              {i === 4 && file.shots.length > 5 ? <span>+{file.shots.length - 5}</span> : null}
-            </button>
-          ))}
-        </div>
+        {shots.length ? (
+          <div className={`DepotGallery DepotGallery--${Math.min(shots.length, 5)}`}>
+            {shots.slice(0, 5).map((shot, i) => (
+              <button
+                type="button"
+                className="DepotGallery-item"
+                style={{ backgroundImage: `url(${i === 0 ? shot.full : shot.thumb})` }}
+                aria-label={t('file.screenshot', { n: i + 1 })}
+                onclick={() => app.modal.show(LightboxModal, { shots, index: i, title: file.title })}
+              >
+                {i === 4 && shots.length > 5 ? <span>+{shots.length - 5}</span> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
-        <div className="DepotProse">
-          {file.description.map((p) => (
-            <p>{p}</p>
-          ))}
-        </div>
+        {file.description ? (
+          <div className="DepotProse">
+            {file.description.split(/(?:\r?\n){2,}/).map((p) => (
+              <p>{p}</p>
+            ))}
+          </div>
+        ) : null}
 
-        <section className="DepotFacts">
-          <h3>{t('file.at_a_glance')}</h3>
-          <dl>
-            <dt>{t('file.works_with')}</dt>
-            <dd>
-              <span className="Depot-dim">{file.game}</span>
-              <span className="DepotFacts-chips">
-                {file.compat.map((c, i) => (
-                  <span className={`Depot-chip Depot-chip--static ${i === file.compat.length - 1 ? 'is-active' : ''}`}>{c}</span>
-                ))}
-              </span>
-            </dd>
-            {file.fields.map(([k, val]) => [<dt>{k}</dt>, <dd>{val}</dd>])}
-            <dt>{t('file.licence')}</dt>
-            <dd>{file.licence}</dd>
-          </dl>
-        </section>
+        {file.compat.length || file.game || file.fields.length || file.licence ? (
+          <section className="DepotFacts">
+            <h3>{t('file.at_a_glance')}</h3>
+            <dl>
+              {file.compat.length || file.game
+                ? [
+                    <dt>{t('file.works_with')}</dt>,
+                    <dd>
+                      {file.game ? <span className="Depot-dim">{file.game}</span> : null}
+                      <span className="DepotFacts-chips">
+                        {file.compat.map((c, i) => (
+                          <span className={`Depot-chip Depot-chip--static ${i === 0 ? 'is-active' : ''}`}>{c}</span>
+                        ))}
+                      </span>
+                    </dd>,
+                  ]
+                : null}
+              {file.fields.map(([k, val]) => [<dt>{k}</dt>, <dd>{val}</dd>])}
+              {file.licence ? [<dt>{t('file.licence')}</dt>, <dd>{file.licence}</dd>] : null}
+            </dl>
+          </section>
+        ) : null}
 
         {file.requires.length ? (
           <section className="DepotRequires">
@@ -159,7 +248,7 @@ export default class FilePage extends Page {
                 <Icon name={r.optional ? 'fas fa-puzzle-piece' : 'fas fa-link'} />
                 <div>
                   <b>{r.name}</b>
-                  <span className="Depot-dim">{r.note}</span>
+                  {r.note ? <span className="Depot-dim">{r.note}</span> : null}
                 </div>
                 <span className={`Depot-pill ${r.optional ? '' : 'Depot-pill--warn'}`}>{r.optional ? t('file.optional') : t('file.required')}</span>
               </div>
@@ -178,35 +267,41 @@ export default class FilePage extends Page {
           </section>
         ) : null}
 
-        <section className="DepotLatest">
-          <div className="DepotLatest-head">
-            <h3>{t('file.whats_new', { version: v.version })}</h3>
-            <button type="button" className="Button Button--link" onclick={() => (this.tab = 'versions')}>
-              {t('file.all_versions')} <Icon name="fas fa-arrow-right" />
-            </button>
-          </div>
-          {this.changes(v)}
-        </section>
+        {v && this.hasChanges(v) ? (
+          <section className="DepotLatest">
+            <div className="DepotLatest-head">
+              <h3>{t('file.whats_new', { version: v.version })}</h3>
+              <button type="button" className="Button Button--link" onclick={() => (this.tab = 'versions')}>
+                {t('file.all_versions')} <Icon name="fas fa-arrow-right" />
+              </button>
+            </div>
+            {this.changes(v)}
+          </section>
+        ) : null}
 
         {this.more(file)}
       </div>
     );
   }
 
+  hasChanges(v) {
+    return KINDS.some(([k]) => v.changelog[k].length);
+  }
+
   more(file) {
-    const others = files.filter((f) => f !== file && !f.locked && (f.user === file.user || category(f.category).parent === category(file.category).parent)).slice(0, 3);
-    if (!others.length) return null;
+    if (!file.related.length) return null;
     return (
       <section className="DepotMore">
         <h3>{t('file.more_like_this')}</h3>
         <div className="DepotMore-grid">
-          {others.map((f) => (
+          {file.related.map((f) => (
             <a className="DepotMore-item" href={app.route('depot.file', { slug: f.slug })}>
-              <span className="DepotMore-art" style={artStyle(f.art)} />
+              {Cover({ file: f, className: 'DepotMore-art' })}
               <span>
                 <b>{f.title}</b>
                 <span className="Depot-dim">
-                  <Icon name="fas fa-download" /> {compact(f.downloads)} · {f.rating.toFixed(1)} <Icon name="fas fa-star" />
+                  <Icon name="fas fa-download" /> {compact(f.downloads)}
+                  {f.ratings ? [' · ', f.rating.toFixed(1), ' ', <Icon name="fas fa-star" />] : null}
                 </span>
               </span>
             </a>
@@ -217,15 +312,16 @@ export default class FilePage extends Page {
   }
 
   changes(v) {
+    if (!this.hasChanges(v)) return <p className="Depot-dim">{t('file.no_changelog')}</p>;
     return (
       <div className="DepotChanges">
-        {KINDS.filter(([k]) => v.changes[k]).map(([k, icon]) => (
+        {KINDS.filter(([k]) => v.changelog[k].length).map(([k, icon]) => (
           <div className={`DepotChanges-group DepotChanges-group--${k}`}>
             <span className="DepotChanges-kind">
               <Icon name={icon} /> {t(`file.change_${k}`)}
             </span>
             <ul>
-              {v.changes[k].map((c) => (
+              {v.changelog[k].map((c) => (
                 <li>{c}</li>
               ))}
             </ul>
@@ -248,7 +344,7 @@ export default class FilePage extends Page {
                 <span className="DepotTimeline-version">v{v.version}</span>
                 {i === 0 ? <span className="Depot-pill Depot-pill--fresh">{t('file.latest')}</span> : null}
                 <span className="Depot-dim">
-                  {shortDate(v.date)} · {bytes(v.size) || t('file.external')} · {t('file.version_downloads', { count: number(v.downloads) })}
+                  {shortDate(v.date)} · {v.external ? v.host || t('file.external') : bytes(v.size)} · {t('file.version_downloads', { count: number(v.downloads) })}
                 </span>
                 <Icon name={this.open[i] ? 'fas fa-chevron-up' : 'fas fa-chevron-down'} className="DepotTimeline-caret" />
               </button>
@@ -256,12 +352,23 @@ export default class FilePage extends Page {
                 <div className="DepotTimeline-body">
                   {this.changes(v)}
                   <div className="DepotTimeline-foot">
-                    <code className="DepotTimeline-sha" title="SHA-256">
-                      <Icon name="fas fa-shield-alt" /> {v.sha256.slice(0, 16)}…
-                    </code>
-                    <Button className={`Button ${i === 0 ? 'Button--primary' : ''}`} icon="fas fa-download" onclick={() => app.modal.show(DownloadModal, { file, version: v })}>
-                      {t('file.download_version', { version: v.version })}
-                    </Button>
+                    {v.sha256 ? (
+                      <code className="DepotTimeline-sha" title="SHA-256">
+                        <Icon name="fas fa-shield-alt" /> {v.sha256.slice(0, 16)}…
+                      </code>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="DepotTimeline-actions">
+                      {file.canEdit && file.versions.length > 1 ? (
+                        <Button className="Button Button--icon Button--link" icon="far fa-trash-alt" aria-label={t('file.delete_version')} onclick={() => this.removeVersion(v)} />
+                      ) : null}
+                      {file.canDownload ? (
+                        <Button className={`Button ${i === 0 ? 'Button--primary' : ''}`} icon="fas fa-download" onclick={() => this.download(file, v)}>
+                          {t('file.download_version', { version: v.version })}
+                        </Button>
+                      ) : null}
+                    </span>
                   </div>
                 </div>
               ) : null}
@@ -272,16 +379,28 @@ export default class FilePage extends Page {
     );
   }
 
+  removeVersion(v) {
+    if (!confirm(t('file.delete_version_confirm', { version: v.version }).toString())) return;
+    api.del(`versions/${v.id}`).then(() => this.load());
+  }
+
+  download(file, v) {
+    startDownload(v);
+    app.modal.show(DownloadModal, { file, version: v, onwatch: (r) => Object.assign(file, r) });
+  }
+
   // ---------------------------------------------------------------- reviews
 
   reviews(file) {
     const total = file.distribution.reduce((a, b) => a + b, 0) || 1;
-    const shown = file.reviews.filter((r) => !this.starFilter || r.stars === this.starFilter);
+    const shown = file.reviews.filter((r) => !this.starFilter || r.rating === this.starFilter);
+    const write = () => app.modal.show(ReviewModal, { file, review: file.myReview, onsave: () => this.load() });
+
     return (
       <div className="DepotReviews">
         <div className="DepotReviews-summary">
           <div className="DepotReviews-score">
-            <b>{file.rating.toFixed(1)}</b>
+            <b>{file.ratings ? file.rating.toFixed(1) : '–'}</b>
             {Stars({ value: file.rating, size: 'Depot-stars--large' })}
             <span className="Depot-dim">{t('file.ratings', { count: number(file.ratings) })}</span>
           </div>
@@ -289,7 +408,12 @@ export default class FilePage extends Page {
             {file.distribution.map((n, i) => {
               const star = 5 - i;
               return (
-                <button type="button" className={`DepotReviews-bar ${this.starFilter === star ? 'is-active' : ''}`} onclick={() => (this.starFilter = this.starFilter === star ? 0 : star)} aria-pressed={this.starFilter === star ? 'true' : 'false'}>
+                <button
+                  type="button"
+                  className={`DepotReviews-bar ${this.starFilter === star ? 'is-active' : ''}`}
+                  onclick={() => (this.starFilter = this.starFilter === star ? 0 : star)}
+                  aria-pressed={this.starFilter === star ? 'true' : 'false'}
+                >
                   <span>
                     {star} <Icon name="fas fa-star" />
                   </span>
@@ -301,157 +425,234 @@ export default class FilePage extends Page {
               );
             })}
           </div>
-          <Button className="Button Button--primary" icon="far fa-star">
-            {t('file.write_review')}
-          </Button>
+          {file.canReview ? (
+            <Button className="Button Button--primary" icon={file.myReview ? 'fas fa-pen' : 'far fa-star'} onclick={write}>
+              {file.myReview ? t('file.edit_review') : t('file.write_review')}
+            </Button>
+          ) : !app.session.user ? (
+            <Button className="Button" onclick={() => app.modal.show(() => import('flarum/forum/components/LogInModal'))}>
+              {t('file.login_to_review')}
+            </Button>
+          ) : (
+            <span />
+          )}
         </div>
 
-        {shown.length ? (
-          shown.map((r) => {
-            const key = r.user + r.date;
-            return (
-              <article className="DepotReview">
-                {Avatar({ user: r.user })}
-                <div className="DepotReview-body">
-                  <header>
-                    <b>{users[r.user].username}</b>
-                    {Stars({ value: r.stars })}
-                    <span className="Depot-dim">
-                      {humanTime(r.date)} · {t('file.reviewed_version', { version: r.version })}
-                    </span>
-                  </header>
-                  <p>{r.body}</p>
-                  {r.reply ? (
-                    <div className="DepotReview-reply">
-                      {Avatar({ user: file.user, className: 'Avatar--mini' })}
-                      <div>
-                        <b>{users[file.user].username}</b> <span className="Depot-pill">{t('file.author')}</span>
-                        <p>{r.reply}</p>
-                      </div>
-                    </div>
-                  ) : null}
-                  <button type="button" className={`DepotReview-helpful ${this.helpful[key] ? 'is-active' : ''}`} aria-pressed={this.helpful[key] ? 'true' : 'false'} onclick={() => (this.helpful[key] = !this.helpful[key])}>
-                    <Icon name={this.helpful[key] ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'} /> {t('file.helpful', { count: r.helpful + (this.helpful[key] ? 1 : 0) })}
-                  </button>
-                </div>
-              </article>
-            );
-          })
-        ) : (
-          <p className="Depot-dim DepotReviews-none">{t('file.no_reviews')}</p>
-        )}
+        {shown.length ? shown.map((r) => this.reviewItem(file, r)) : <p className="Depot-dim DepotReviews-none">{file.reviews.length ? t('file.no_reviews_filtered') : t('file.no_reviews')}</p>}
       </div>
     );
+  }
+
+  reviewItem(file, r) {
+    const mine = app.session.user && r.user && String(r.user.id) === app.session.user.id();
+    return (
+      <article className="DepotReview">
+        {Avatar({ user: r.user })}
+        <div className="DepotReview-body">
+          <header>
+            <b>{r.user ? r.user.displayName : '?'}</b>
+            {Stars({ value: r.rating })}
+            <span className="Depot-dim">
+              {humanTime(r.date)}
+              {r.version ? [' · ', t('file.reviewed_version', { version: r.version })] : null}
+            </span>
+          </header>
+          {r.body ? <p>{r.body}</p> : null}
+          {this.replying === r.id ? (
+            this.replyEditor(r)
+          ) : r.reply ? (
+            <div className="DepotReview-reply">
+              {Avatar({ user: file.user, className: 'Avatar--mini' })}
+              <div>
+                <b>{file.user ? file.user.displayName : ''}</b> <span className="Depot-pill">{t('file.author')}</span>
+                <p>{r.reply}</p>
+              </div>
+            </div>
+          ) : null}
+          <div className="DepotReview-actions">
+            {app.session.user && !mine ? (
+              <button type="button" className={`DepotReview-helpful ${r.helpfulByMe ? 'is-active' : ''}`} aria-pressed={r.helpfulByMe ? 'true' : 'false'} onclick={() => this.helpful(r)}>
+                <Icon name={r.helpfulByMe ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'} /> {t('file.helpful', { count: r.helpful })}
+              </button>
+            ) : r.helpful ? (
+              <span className="Depot-dim">{t('file.helpful', { count: r.helpful })}</span>
+            ) : null}
+            {file.canEdit && !mine && this.replying !== r.id ? (
+              <button type="button" className="Button Button--link Button--small" onclick={() => ((this.replying = r.id), (this.replyText = r.reply || ''))}>
+                {r.reply ? t('file.edit_reply') : t('file.reply')}
+              </button>
+            ) : null}
+            {mine || file.canModerate ? (
+              <button type="button" className="Button Button--link Button--small" onclick={() => this.removeReview(r)}>
+                {t('file.delete_review')}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  replyEditor(r) {
+    const save = () =>
+      api.post(`reviews/${r.id}/reply`, { reply: this.replyText }).then((res) => {
+        r.reply = res.reply;
+        this.replying = null;
+        m.redraw();
+      });
+    return (
+      <div className="DepotReview-replyEditor">
+        <textarea
+          className="FormControl"
+          rows="3"
+          aria-label={t('file.reply')}
+          placeholder={t('file.reply_placeholder').toString()}
+          value={this.replyText}
+          oninput={(e) => (this.replyText = e.target.value)}
+          oncreate={(vnode) => vnode.dom.focus()}
+        />
+        <div>
+          <Button className="Button Button--primary Button--small" onclick={save}>
+            {t('file.reply_save')}
+          </Button>
+          <Button className="Button Button--link Button--small" onclick={() => (this.replying = null)}>
+            {t('file.cancel')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  helpful(r) {
+    api.post(`reviews/${r.id}/helpful`, { helpful: !r.helpfulByMe }).then((res) => {
+      Object.assign(r, res);
+      m.redraw();
+    });
+  }
+
+  removeReview(r) {
+    if (!confirm(t('file.delete_review_confirm').toString())) return;
+    api.del(`reviews/${r.id}`).then(() => this.load());
   }
 
   // ---------------------------------------------------------------- discussion
 
   discussion(file) {
-    const tag = this.supportTag();
+    const d = file.discussion;
+    if (!d) return <p className="Depot-dim DepotReviews-none">{file.approved ? t('file.no_thread') : t('file.thread_after_approval')}</p>;
+    if (!this.posts) this.loadPosts(d);
+
     return (
       <div className="DepotDiscussion">
         <div className="DepotThread">
           <Icon name="far fa-comments" />
           <div>
-            <b>{t('file.thread_title', { title: file.title })}</b>
+            <b>{d.title}</b>
             <span className="Depot-dim">
-              {t('file.thread_meta', { count: file.discussionReplies })}
-              {tag ? (
-                <>
-                  {' · '}
-                  <span className="Depot-label" style={{ '--label-color': tag.color }}>
-                    {tag.name}
-                  </span>
-                </>
-              ) : null}
+              {t('file.thread_meta', { count: d.replies })}
+              {d.tag
+                ? [
+                    ' · ',
+                    <span className="Depot-label" style={{ '--label-color': d.tag.color || 'var(--control-color)' }}>
+                      {d.tag.name}
+                    </span>,
+                  ]
+                : null}
             </span>
           </div>
-          <a className="Button" href="#" onclick={(e) => e.preventDefault()}>
+          <a className="Button" href={d.url}>
             {t('file.thread_open')}
           </a>
         </div>
-        {file.posts.map((p) => (
-          <article className="Post CommentPost DepotPost">
-            <header className="Post-header">
-              <ul>
-                <li className="item-user">
-                  <div className="PostUser">
-                    <h3 className="PostUser-name">
-                      {Avatar({ user: p.user, className: 'PostUser-avatar' })}
-                      <span className="username">{users[p.user].username}</span>
-                    </h3>
-                  </div>
-                </li>
-                <li className="item-meta">
-                  <span className="Depot-dim">{humanTime(p.date)}</span>
-                </li>
-                {p.user === file.user ? (
-                  <li>
-                    <span className="Depot-pill">{t('file.author')}</span>
-                  </li>
-                ) : null}
-              </ul>
-            </header>
-            <div className="Post-body">
-              <p>{p.body}</p>
-            </div>
-          </article>
-        ))}
-        <div className="DepotReply">
-          <span className="Avatar Avatar--mini" style={{ '--avatar-bg': app.session.user ? app.session.user.color() : '#8a99ad' }}>
-            {app.session.user ? app.session.user.displayName().charAt(0).toUpperCase() : '?'}
-          </span>
-          <span>{t('file.reply_placeholder')}</span>
-        </div>
+        {this.posts === 'loading' ? <LoadingIndicator /> : null}
+        {Array.isArray(this.posts)
+          ? this.posts.map((p) => {
+              const user = p.user();
+              return (
+                <article className="DepotPost">
+                  <header>
+                    {user ? <img className="Avatar Avatar--mini" src={user.avatarUrl() || ''} hidden={!user.avatarUrl()} alt="" /> : null}
+                    <b>{user ? user.displayName() : ''}</b>
+                    <span className="Depot-dim">{humanTime(p.createdAt())}</span>
+                  </header>
+                  {/* Flarum's own rendered post, exactly as the discussion shows it. */}
+                  <div className="Post-body">{m.trust(p.contentHtml())}</div>
+                </article>
+              );
+            })
+          : null}
+        <a className="DepotReply" href={d.url}>
+          <Icon name="fas fa-reply" />
+          <span>{t('file.reply_in_thread')}</span>
+        </a>
       </div>
     );
   }
 
-  /** The tag the support discussion was filed under — a real forum tag when flarum/tags has one called Support. */
-  supportTag() {
-    const tags = app.store.all('tags') || [];
-    const tag = tags.find((x) => /support|help/i.test(x.name())) || tags.find((x) => x.isPrimary && x.isPrimary());
-    return tag ? { name: tag.name(), color: tag.color() || 'var(--control-color)' } : null;
+  /** The latest few posts through Flarum's own API, so permissions, hidden posts and formatting are core's. */
+  loadPosts(d) {
+    this.posts = 'loading';
+    app.store.find('posts', { filter: { discussion: String(d.id), type: 'comment' }, sort: '-createdAt', page: { limit: 4 } }).then(
+      (posts) => {
+        this.posts = [...posts].reverse();
+        m.redraw();
+      },
+      () => (this.posts = [])
+    );
   }
 
   // ---------------------------------------------------------------- sidebar
 
   side(file) {
-    const v = latest(file);
+    const v = file.versions[0];
     const total30 = file.trend.reduce((a, b) => a + b, 0);
-    const u = users[file.user];
-    const dl = () => app.modal.show(DownloadModal, { file, version: v });
+    const u = file.user;
 
     return [
-      <div className="DepotSideCard DepotSideCard--download">
-        <SplitDropdown className="DepotDownloadSplit" buttonClassName="Button Button--primary Button--large" icon="fas fa-download" accessibleToggleLabel={t('file.older_versions')}>
-          <Button icon="fas fa-download" onclick={dl}>
-            {t('file.download', { version: v.version })}
-          </Button>
-          {file.versions.slice(1).map((old) => (
-            <Button icon="fas fa-history" onclick={() => app.modal.show(DownloadModal, { file, version: old })}>
-              {t('file.download_old', { version: old.version, time: humanTime(old.date) })}
+      v ? (
+        <div className="DepotSideCard DepotSideCard--download">
+          {file.canDownload ? (
+            <SplitDropdown className="DepotDownloadSplit" buttonClassName="Button Button--primary Button--large" icon="fas fa-download" accessibleToggleLabel={t('file.older_versions')}>
+              <Button icon="fas fa-download" onclick={() => this.download(file, v)}>
+                {t('file.download', { version: v.version })}
+              </Button>
+              {file.versions.slice(1, 8).map((old) => (
+                <Button icon="fas fa-history" onclick={() => this.download(file, old)}>
+                  {t('file.download_old', { version: old.version, time: humanTime(old.date) })}
+                </Button>
+              ))}
+            </SplitDropdown>
+          ) : (
+            <Button className="Button Button--large" disabled>
+              {app.session.user ? t('file.no_download_permission') : t('file.login_to_download')}
             </Button>
-          ))}
-        </SplitDropdown>
-        <div className="DepotSideCard-sub">
-          {file.format}
-          {v.size ? ` · ${bytes(v.size)}` : ''} · {t('file.released', { time: humanTime(v.date) })}
-        </div>
-        <Button className={`Button DepotWatch ${this.watching ? 'is-active' : ''}`} icon={this.watching ? 'fas fa-bell' : 'far fa-bell'} onclick={() => (this.watching = !this.watching)}>
-          {this.watching ? t('file.watching') : t('file.watch')}
-        </Button>
-        <div className="DepotSideCard-trust">
-          <Tooltip text={t('file.verified_tooltip')}>
+          )}
+          <div className="DepotSideCard-sub">
+            {[v.external ? v.host : v.filename && v.filename.includes('.') ? v.filename.split('.').pop().toUpperCase() : null, v.size ? bytes(v.size) : null, t('file.released', { time: humanTime(v.date) })]
+              .filter(Boolean)
+              .reduce((out, part, i) => (i ? [...out, ' · ', part] : [part]), [])}
+          </div>
+          {app.session.user ? (
+            <Button className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`} icon={file.watching ? 'fas fa-bell' : 'far fa-bell'} onclick={() => this.watch(file)}>
+              {file.watching ? t('file.watching') : t('file.watch')}
+            </Button>
+          ) : null}
+          <div className="DepotSideCard-trust">
+            {v.sha256 ? (
+              <Tooltip text={t('file.verified_tooltip')}>
+                <span>
+                  <Icon name="fas fa-shield-alt" /> {t('file.verified')}
+                </span>
+              </Tooltip>
+            ) : (
+              <span />
+            )}
             <span>
-              <Icon name="fas fa-shield-alt" /> {t('file.verified')}
+              <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers) })}
             </span>
-          </Tooltip>
-          <span>
-            <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers + (this.watching ? 1 : 0)) })}
-          </span>
+          </div>
         </div>
-      </div>,
+      ) : null,
 
       <div className="DepotSideCard">
         <div className="DepotSideCard-row">
@@ -465,8 +666,7 @@ export default class FilePage extends Page {
           </div>
         </div>
         <dl className="DepotStats">
-          <dt>{t('file.this_version')}</dt>
-          <dd>{number(v.downloads)}</dd>
+          {v ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
           <dt>{t('file.first_released')}</dt>
           <dd>{shortDate(file.created)}</dd>
           <dt>{t('file.versions')}</dt>
@@ -474,7 +674,7 @@ export default class FilePage extends Page {
         </dl>
       </div>,
 
-      file.source !== 'link' ? (
+      v && v.sha256 ? (
         <div className="DepotSideCard">
           <h4 className="DepotSideCard-label">SHA-256</h4>
           <div className="Depot-copy Depot-copy--small">
@@ -488,44 +688,54 @@ export default class FilePage extends Page {
         <div className="DepotSideCard DepotSideCard--source">
           <Icon name="fab fa-github" />
           <div>
-            <b>{file.repo}</b>
-            <span className="Depot-dim">{t('file.github_sync', { time: humanTime(v.date) })}</span>
+            <a href={`https://github.com/${file.repo}`} target="_blank" rel="noopener noreferrer">
+              <b>{file.repo}</b>
+            </a>
+            <span className="Depot-dim">{t('file.github_sync')}</span>
           </div>
         </div>
       ) : null,
 
-      <div className="DepotSideCard DepotSideCard--author">
-        {Avatar({ user: file.user, className: 'Avatar--large' })}
-        <div>
-          <b>{u.username}</b>
-          <span className="Depot-dim">{t('file.author_stats', { files: u.files, downloads: compact(u.downloads) })}</span>
+      u ? (
+        <div className="DepotSideCard DepotSideCard--author">
+          {Avatar({ user: u, className: 'Avatar--large' })}
+          <div>
+            <b>{u.displayName}</b>
+            {file.author ? <span className="Depot-dim">{t('file.author_stats', { files: file.author.files, downloads: compact(file.author.downloads) })}</span> : null}
+          </div>
+          <a className="Button Button--small" href={app.route('user', { username: u.slug })}>
+            {t('file.view_profile')}
+          </a>
         </div>
-        <Button className="Button Button--small">{t('file.more_by')}</Button>
-      </div>,
+      ) : null,
 
       <details className="DepotSideCard DepotApi">
         <summary>
           <Icon name="fas fa-code" /> {t('file.api')}
         </summary>
         <p className="Depot-dim">{t('file.api_help')}</p>
-        <pre>{`GET /api/depot/files/${file.slug}/latest
-
-{
-  "version": "${v.version}",
-  "sha256": "${v.sha256.slice(0, 12)}…",
-  "size": ${v.size},
-  "url": "/downloads/f/${file.slug}/${v.version}"
-}`}</pre>
+        <pre>{`GET ${file.updateUrl}`}</pre>
       </details>,
     ];
   }
 
+  watch(file) {
+    api.post(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
+      file.watching = r.watching;
+      file.watchers = r.watchers;
+      m.redraw();
+    });
+  }
+
   copy(text) {
     if (!navigator.clipboard) return;
-    navigator.clipboard.writeText(text).then(() => {
-      this.copied = true;
-      m.redraw();
-      setTimeout(() => ((this.copied = false), m.redraw()), 1800);
-    }, () => {});
+    navigator.clipboard.writeText(text).then(
+      () => {
+        this.copied = true;
+        m.redraw();
+        setTimeout(() => ((this.copied = false), m.redraw()), 1800);
+      },
+      () => {}
+    );
   }
 }
