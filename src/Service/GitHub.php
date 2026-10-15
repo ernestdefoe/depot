@@ -44,6 +44,17 @@ class GitHub
         $file->saveQuietly();
 
         try {
+            // With the forum's token, a member could otherwise name a private
+            // repository the token can read and publish its releases here.
+            if ($this->settings->get('ernestdefoe-depot.github_token')) {
+                $repo = json_decode((string) $this->client()->get("repos/{$file->repo}")->getBody(), true);
+                if (! is_array($repo) || ($repo['private'] ?? true) !== false) {
+                    $this->log->info("[depot] GitHub sync refused for {$file->repo}: not a public repository");
+
+                    return [];
+                }
+            }
+
             $response = $this->client()->get("repos/{$file->repo}/releases", ['query' => ['per_page' => $limit]]);
             $releases = json_decode((string) $response->getBody(), true) ?: [];
         } catch (\Throwable $e) {

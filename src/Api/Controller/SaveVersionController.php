@@ -31,6 +31,14 @@ class SaveVersionController implements RequestHandlerInterface
         $file = $this->editableFile($actor, Arr::get($request->getQueryParams(), 'id'));
         $in = $this->input($request);
 
+        // Versions count against the same hourly limit as files, per file.
+        if (! $actor->hasPermission('depot.moderate')) {
+            $limit = max(1, (int) (resolve('flarum.settings')->get('ernestdefoe-depot.uploads_per_hour') ?: 10));
+            if ($file->versions()->where('created_at', '>', \Carbon\Carbon::now()->subHour())->count() >= $limit) {
+                throw new \Flarum\Post\Exception\FloodingException();
+            }
+        }
+
         $number = mb_substr(trim((string) Arr::get($in, 'version', '')), 0, 40);
         if ($number === '') {
             $this->fail('version', 'no_version');
@@ -67,8 +75,7 @@ class SaveVersionController implements RequestHandlerInterface
 
         // Watchers hear about it once the file is public, never before.
         if ($file->approved_at) {
-            $watchers = $file->watchers()->where('users.id', '!=', $actor->id)->get();
-            $this->notifications->sync(new NewVersion($version), $watchers->all());
+            $this->notifications->sync(new NewVersion($version), $file->audience()->where('users.id', '!=', $actor->id)->get()->all());
         }
 
         return new JsonResponse(['id' => $version->id], 201);

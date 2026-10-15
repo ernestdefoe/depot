@@ -25,6 +25,13 @@ class Store
     public const FILES = 'depot-files';
     public const MEDIA = 'depot-media';
 
+    /**
+     * The most pixels a screenshot may claim. Decoding allocates width ×
+     * height × 4 bytes whatever the file size, so a 700 KB PNG that claims
+     * 16000×16000 would ask for a gigabyte. 40 megapixels is twice an 8K frame.
+     */
+    public const MAX_PIXELS = 40_000_000;
+
     /** Screenshot renditions: the long edge in pixels. */
     public const SHOT_FULL = 1920;
     public const SHOT_THUMB = 640;
@@ -101,13 +108,8 @@ class Store
      */
     public function putScreenshot(UploadedFileInterface $upload, int $maxBytes): array
     {
-        $this->assertUploaded($upload, 'screenshot', $maxBytes);
-
-        $bytes = (string) $upload->getStream();
-        $info = @getimagesizefromstring($bytes);
-        $image = $info && in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF], true)
-            ? @imagecreatefromstring($bytes)
-            : false;
+        $bytes = $this->checkScreenshot($upload, $maxBytes);
+        $image = @imagecreatefromstring($bytes);
 
         if (! $image) {
             throw new ValidationException(['screenshot' => $this->t('not_an_image')]);
@@ -130,6 +132,31 @@ class Store
         imagedestroy($image);
 
         return ['path' => $base, 'width' => $w, 'height' => $h];
+    }
+
+    /**
+     * Everything that can be known about a screenshot without decoding it:
+     * it arrived, it is small enough, it is a picture type GD reads, and its
+     * header does not claim more pixels than MAX_PIXELS. Run on every upload
+     * before anything is saved, so a refusal leaves nothing half-made.
+     */
+    public function checkScreenshot(UploadedFileInterface $upload, int $maxBytes): string
+    {
+        $this->assertUploaded($upload, 'screenshot', $maxBytes);
+
+        $stream = $upload->getStream();
+        $stream->rewind();
+        $bytes = (string) $stream;
+        $info = @getimagesizefromstring($bytes);
+
+        if (! $info || ! in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_WEBP, IMAGETYPE_GIF], true)) {
+            throw new ValidationException(['screenshot' => $this->t('not_an_image')]);
+        }
+        if ($info[0] * $info[1] > self::MAX_PIXELS) {
+            throw new ValidationException(['screenshot' => $this->t('image_too_big', ['max' => intdiv(self::MAX_PIXELS, 1_000_000)])]);
+        }
+
+        return $bytes;
     }
 
     public function screenshotUrl(string $base, bool $thumb = false): string

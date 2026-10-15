@@ -11,6 +11,9 @@ use ErnestDefoe\Depot\Service\Counters;
 use ErnestDefoe\Depot\Service\GitHub;
 use ErnestDefoe\Depot\Service\SupportThread;
 use ErnestDefoe\Depot\Storage\Store;
+use Flarum\Post\Exception\FloodingException;
+use Flarum\Settings\SettingsRepositoryInterface;
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -35,6 +38,8 @@ class SaveFileController implements RequestHandlerInterface
         private Counters $counters,
         private GitHub $github,
         private SupportThread $thread,
+        private ConnectionInterface $db,
+        private SettingsRepositoryInterface $settings,
     ) {
     }
 
@@ -49,6 +54,7 @@ class SaveFileController implements RequestHandlerInterface
         if ($creating) {
             $actor->assertRegistered();
             $actor->assertPermission($actor->hasPermission('depot.upload'));
+            $this->throttle($actor);
             $file = new File(['user_id' => $actor->id]);
         } else {
             $file = $this->editableFile($actor, $id);
@@ -79,6 +85,13 @@ class SaveFileController implements RequestHandlerInterface
             $this->fail('link', 'bad_link');
         }
 
+        // Everything that can fail is checked before anything is written.
+        $shots = $uploads['screenshots'] ?? [];
+        $shots = array_values(array_filter(is_array($shots) ? $shots : [$shots], fn ($u) => $u instanceof UploadedFileInterface && $u->getError() !== UPLOAD_ERR_NO_FILE));
+        foreach ($shots as $shot) {
+            $this->store->checkScreenshot($shot, self::SHOT_BYTES);
+        }
+
         // Approval: moderators and anyone allowed to skip it go straight out.
         if ($creating && ($actor->hasPermission('depot.skipApproval') || $actor->hasPermission('depot.moderate'))) {
             $file->approved_at = Carbon::now();
@@ -87,20 +100,15 @@ class SaveFileController implements RequestHandlerInterface
         if ($creating) {
             $file->slug = $this->slug($file->title);
         }
-        $file->save();
 
-        if ($creating) {
-            $version = mb_substr(trim((string) Arr::get($in, 'version', '1.0.0')), 0, 40) ?: '1.0.0';
-            if ($source === 'upload') {
-                $file->versions()->create(['version' => $version, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()] + $this->store->putFile($upload, $this->maxBytes()));
-            } elseif ($source === 'link') {
-                $file->versions()->create(['version' => $version, 'url' => $link, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()]);
-            } else {
-                $this->github->sync($file);
-            }
+        $this->db->transaction(function () use ($file, $creating, $in, $source, $upload, $link, $shots) {
+            $this->write($file, $creating, $in, $source, $upload, $link, $shots);
+        });
+
+        // Outside the transaction: never hold the database open across a call to GitHub.
+        if ($creating && $source === 'github') {
+            $this->github->sync($file);
         }
-
-        $this->screenshots($file, $uploads['screenshots'] ?? []);
 
         $this->counters->file($file);
         $this->counters->categories();
@@ -110,6 +118,41 @@ class SaveFileController implements RequestHandlerInterface
         }
 
         return new JsonResponse(['slug' => $file->slug, 'approved' => $file->approved_at !== null], $creating ? 201 : 200);
+    }
+
+    private const SHOT_BYTES = 20 * 1048576;
+
+    /**
+     * Members may create this many files an hour (setting, default 10);
+     * moderators are not counted. Enough for anyone publishing a set, too few
+     * to fill a disk or bury the approval queue.
+     */
+    private function throttle($actor): void
+    {
+        if ($actor->hasPermission('depot.moderate')) {
+            return;
+        }
+        $limit = max(1, (int) ($this->settings->get('ernestdefoe-depot.uploads_per_hour') ?: 10));
+        $recent = File::query()->where('user_id', $actor->id)->where('created_at', '>', \Carbon\Carbon::now()->subHour())->count();
+        if ($recent >= $limit) {
+            throw new FloodingException();
+        }
+    }
+
+    private function write(File $file, bool $creating, array $in, string $source, $upload, string $link, array $shots): void
+    {
+        $file->save();
+
+        if ($creating) {
+            $version = mb_substr(trim((string) Arr::get($in, 'version', '1.0.0')), 0, 40) ?: '1.0.0';
+            if ($source === 'upload') {
+                $file->versions()->create(['version' => $version, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()] + $this->store->putFile($upload, $this->maxBytes()));
+            } elseif ($source === 'link') {
+                $file->versions()->create(['version' => $version, 'url' => $link, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()]);
+            }
+        }
+
+        $this->screenshots($file, $shots);
     }
 
     private function details(File $file, array $in, $actor, bool $creating): void
@@ -189,17 +232,14 @@ class SaveFileController implements RequestHandlerInterface
         }
     }
 
-    /** @param UploadedFileInterface[]|UploadedFileInterface $shots */
-    private function screenshots(File $file, $shots): void
+    /** @param UploadedFileInterface[] $shots already checked */
+    private function screenshots(File $file, array $shots): void
     {
-        $shots = is_array($shots) ? $shots : [$shots];
         $have = $file->screenshots()->count();
         $position = (int) $file->screenshots()->max('position');
 
         foreach (array_slice($shots, 0, max(0, 8 - $have)) as $shot) {
-            if ($shot instanceof UploadedFileInterface && $shot->getError() !== UPLOAD_ERR_NO_FILE) {
-                $file->screenshots()->create(['position' => ++$position] + $this->store->putScreenshot($shot, 20 * 1048576));
-            }
+            $file->screenshots()->create(['position' => ++$position] + $this->store->putScreenshot($shot, self::SHOT_BYTES));
         }
     }
 

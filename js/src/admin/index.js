@@ -25,6 +25,7 @@ export const extend = [
       help: tr('settings.count_window_help'),
     }))
     .setting(() => ({ setting: 'ernestdefoe-depot.max_upload_mb', type: 'number', min: 1, label: tr('settings.max_upload'), help: tr('settings.max_upload_help') }))
+    .setting(() => ({ setting: 'ernestdefoe-depot.uploads_per_hour', type: 'number', min: 1, label: tr('settings.uploads_per_hour'), help: tr('settings.uploads_per_hour_help') }))
     .setting(() => ({ setting: 'ernestdefoe-depot.support_thread', type: 'boolean', label: tr('settings.support_thread'), help: tr('settings.support_thread_help') }))
     .setting(() => ({ setting: 'ernestdefoe-depot.github_sync', type: 'boolean', label: tr('settings.github_sync'), help: tr('settings.github_sync_help') }))
     .setting(() => ({ setting: 'ernestdefoe-depot.github_token', type: 'password', label: tr('settings.github_token'), help: tr('settings.github_token_help') }))

@@ -284,6 +284,7 @@ ernestdefoe-depot:
 
   api:
     not_an_image: That isn't a picture Depot can read. Use a JPEG, PNG, WebP or GIF.
+    image_too_big: "That picture is too large. Screenshots can be up to {max} megapixels."
     too_large_server: That file is larger than this server accepts.
     too_large: "That file is larger than the {mb} MB this forum allows."
     upload_broken: The upload didn't arrive in one piece. Try again.
@@ -337,6 +338,8 @@ ernestdefoe-depot:
       window_168: 7 days
       max_upload: Largest upload (MB)
       max_upload_help: Your server's upload_max_filesize and post_max_size must be at least this big too.
+      uploads_per_hour: Uploads per member per hour
+      uploads_per_hour_help: New files, and new versions of each file. Moderators aren't limited.
       support_thread: Start a support discussion for new files
       support_thread_help: Uploaders choose the tag. They can turn it off for their own file.
       github_sync: Allow GitHub release sync

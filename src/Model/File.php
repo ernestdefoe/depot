@@ -115,6 +115,25 @@ class File extends AbstractModel
         return $this->belongsToMany(User::class, 'depot_watchers', 'file_id', 'user_id');
     }
 
+    /**
+     * Watchers who can still open this file. A category locked after somebody
+     * started watching must not keep sending them its titles.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function audience(): BelongsToMany
+    {
+        $query = $this->watchers();
+        $category = $this->category_id ? Category::tree()->firstWhere('id', $this->category_id) : null;
+
+        if ($category && $category->isLocked()) {
+            $groups = $category->lockGroups()->pluck('id')->all();
+            $query->where(fn ($q) => $q->whereHas('groups', fn ($g) => $g->whereIn('groups.id', [...$groups, \Flarum\Group\Group::ADMINISTRATOR_ID, \Flarum\Group\Group::MODERATOR_ID]))->orWhere('users.id', $this->user_id));
+        }
+
+        return $query;
+    }
+
     /** @return BelongsTo<Discussion, $this> */
     public function discussion(): BelongsTo
     {

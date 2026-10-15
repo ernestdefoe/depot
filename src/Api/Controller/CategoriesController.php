@@ -39,11 +39,16 @@ class CategoriesController implements RequestHandlerInterface
         $in = $this->input($request);
 
         if ($method === 'POST' && str_ends_with($request->getUri()->getPath(), '/order')) {
-            foreach (array_values((array) Arr::get($in, 'order', [])) as $position => $row) {
-                Category::query()->where('id', (int) Arr::get($row, 'id'))->update([
-                    'position' => $position,
-                    'parent_id' => Arr::get($row, 'parent') ? (int) $row['parent'] : null,
-                ]);
+            $rows = array_values((array) Arr::get($in, 'order', []));
+            $parents = array_filter(array_map(fn ($r) => (int) Arr::get($r, 'parent'), $rows));
+            foreach ($rows as $position => $row) {
+                $id = (int) Arr::get($row, 'id');
+                $parent = (int) Arr::get($row, 'parent') ?: null;
+                // Two levels: a parent is never itself a child, and nothing is its own parent.
+                if ($parent && ($parent === $id || in_array($id, $parents, true) || collect($rows)->contains(fn ($r) => (int) Arr::get($r, 'id') === $parent && Arr::get($r, 'parent')))) {
+                    $this->fail('parent', 'bad_parent');
+                }
+                Category::query()->where('id', $id)->update(['position' => $position, 'parent_id' => $parent]);
             }
 
             return $this->list();

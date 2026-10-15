@@ -39,7 +39,7 @@ class SyncGitHubCommand extends AbstractCommand
         foreach ($files as $file) {
             foreach ($this->github->sync($file) as $version) {
                 $this->info("{$file->slug}: {$version->version}");
-                $this->notifications->sync(new NewVersion($version), $file->watchers()->get()->all());
+                $this->notifications->sync(new NewVersion($version), $file->audience()->get()->all());
             }
         }
 

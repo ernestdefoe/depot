@@ -111,6 +111,7 @@ return [
     (new Extend\Settings())
         ->default('ernestdefoe-depot.count_window', '24')
         ->default('ernestdefoe-depot.max_upload_mb', '250')
+        ->default('ernestdefoe-depot.uploads_per_hour', '10')
         ->default('ernestdefoe-depot.support_thread', '1')
         ->default('ernestdefoe-depot.github_sync', '1')
         ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => (int) ($v ?: 250))

@@ -147,7 +147,7 @@ class Presenter
      */
     public function full(File $f, User $actor, Collection $related): array
     {
-        $f->loadMissing(['versions', 'screenshots', 'discussion']);
+        $f->loadMissing(['versions', 'screenshots']);
         // The latest version is one of the versions just loaded.
         $f->setRelation('latest', $f->versions->firstWhere('id', $f->latest_version_id));
 
@@ -189,7 +189,7 @@ class Presenter
             'reviews' => $reviews->map(fn (Review $r) => $this->review($r, in_array($r->id, $helpful, true)))->values(),
             'myReview' => $mine ? $this->review($mine, false) : null,
             'distribution' => array_map(fn ($star) => (int) ($distribution[$star] ?? 0), [5, 4, 3, 2, 1]),
-            'discussion' => $this->discussion($f),
+            'discussion' => $this->discussion($f, $actor),
             'author' => $author ? ['files' => (int) $author->files, 'downloads' => (int) $author->downloads] : null,
             'canEdit' => $f->canEdit($actor),
             'canModerate' => $actor->hasPermission('depot.moderate'),
@@ -243,9 +243,10 @@ class Presenter
         ];
     }
 
-    private function discussion(File $f): ?array
+    /** The support discussion, only for people allowed to see it (a restricted tag, a hidden discussion). */
+    private function discussion(File $f, User $actor): ?array
     {
-        $d = $f->discussion;
+        $d = $f->discussion_id ? \Flarum\Discussion\Discussion::query()->whereVisibleTo($actor)->find($f->discussion_id) : null;
         if (! $d) {
             return null;
         }
