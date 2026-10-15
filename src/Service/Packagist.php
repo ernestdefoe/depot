@@ -56,6 +56,32 @@ class Packagist
         }
     }
 
+    /**
+     * When the package's first version was published, from Packagist's own
+     * metadata. A file's history then starts where the project's did, not on
+     * the day it was added to the forum.
+     */
+    public function adopt(File $file, string $package): void
+    {
+        $file->package = $package;
+
+        try {
+            $meta = json_decode((string) $this->client()->get("https://repo.packagist.org/p2/$package.json")->getBody(), true);
+            $times = array_filter(array_map(fn ($v) => $v['time'] ?? null, $meta['packages'][$package] ?? []));
+            if ($times) {
+                $first = Carbon::parse(min($times));
+                if (! $file->created_at || $first->lt($file->created_at)) {
+                    $file->created_at = $first;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Without the date the file keeps the day it was added.
+        }
+
+        $file->saveQuietly();
+        $this->refresh($file);
+    }
+
     /** Read the package's install total and its daily installs for the trend. */
     public function refresh(File $file): void
     {

@@ -366,8 +366,13 @@ export default class FilePage extends Page {
                 <span className="DepotTimeline-version">v{v.version}</span>
                 {i === 0 ? <span className="Depot-pill Depot-pill--fresh">{t('file.latest')}</span> : null}
                 <span className="Depot-dim">
-                  {shortDate(v.date)} · {file.source === 'github' ? 'GitHub' : v.external ? v.host || t('file.external') : bytes(v.size)} ·{' '}
-                  {file.package ? null : t('file.version_downloads', { count: number(v.downloads) })}
+                  {[
+                    shortDate(v.date),
+                    file.source === 'github' ? 'GitHub' : v.external ? v.host || t('file.external') : bytes(v.size),
+                    file.package ? null : t('file.version_downloads', { count: number(v.downloads) }),
+                  ]
+                    .filter(Boolean)
+                    .reduce((out, part, i) => (i ? [...out, ' · ', part] : [part]), [])}
                 </span>
                 <Icon name={this.open[i] ? 'fas fa-chevron-up' : 'fas fa-chevron-down'} className="DepotTimeline-caret" />
               </button>
@@ -676,7 +681,7 @@ export default class FilePage extends Page {
         <dl className="DepotStats">
           {v && !file.package ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
           <dt>{t('file.first_released')}</dt>
-          <dd>{shortDate(file.created)}</dd>
+          <dd>{shortDate(file.firstReleased || file.created)}</dd>
           <dt>{t('file.versions')}</dt>
           <dd>{file.versions.length}</dd>
         </dl>

@@ -35,7 +35,7 @@ class GitHub
     }
 
     /** @return Version[] the versions added */
-    public function sync(File $file, int $limit = 5): array
+    public function sync(File $file, ?int $limit = null): array
     {
         if ($file->source !== 'github' || ! $file->repo || ! self::validRepo($file->repo)) {
             return [];
@@ -43,6 +43,10 @@ class GitHub
 
         $file->synced_at = Carbon::now();
         $file->saveQuietly();
+
+        // The first sync brings in the history (up to 30 releases); after that
+        // only the newest few can be new.
+        $limit ??= $file->versions()->exists() ? 5 : 30;
 
         try {
             // With the forum's token, a member could otherwise name a private
@@ -101,9 +105,7 @@ class GitHub
         // A repository that publishes a Composer package is installed with
         // Composer: find the package once, then its numbers come from Packagist.
         if (! $file->package && ($package = $this->packagist->detect($file->repo))) {
-            $file->package = $package;
-            $file->saveQuietly();
-            $this->packagist->refresh($file);
+            $this->packagist->adopt($file, $package);
         }
 
         return $added;

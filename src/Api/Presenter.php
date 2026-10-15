@@ -184,6 +184,8 @@ class Presenter
         return $this->card($f, $f->screenshots->first(), $trends[$f->id] ?? null) + [
             'related' => $related->map(fn (File $r) => $this->card($r, $covers[$r->id] ?? null, $trends[$r->id] ?? null))->values()->all(),
             'description' => $f->description,
+            // The oldest release, not the day the file was added here.
+            'firstReleased' => collect([$f->versions->min('created_at'), $f->created_at])->filter()->min()?->toIso8601String(),
             'licence' => $f->licence,
             'fields' => $f->fields ?: [],
             'requires' => $f->requires ?: [],

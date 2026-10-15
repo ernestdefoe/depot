@@ -40,9 +40,12 @@ class SyncGitHubCommand extends AbstractCommand
             ->where(fn ($q) => $q->whereNull('stats_synced_at')->orWhere('stats_synced_at', '<', \Carbon\Carbon::now()->subDay()))
             ->take(Packagist::PER_RUN)->get();
         foreach ($unknown as $file) {
-            $file->package = $this->packagist->detect((string) $file->repo);
-            $file->stats_synced_at = $file->package ? null : \Carbon\Carbon::now();
-            $file->saveQuietly();
+            if ($package = $this->packagist->detect((string) $file->repo)) {
+                $this->packagist->adopt($file, $package);
+            } else {
+                $file->stats_synced_at = \Carbon\Carbon::now();
+                $file->saveQuietly();
+            }
         }
 
         // Packagist first: it does not spend the GitHub quota, and install
