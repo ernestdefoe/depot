@@ -18,7 +18,7 @@ function loadStyles() {
   return (styles ??= new Promise((resolve) => {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `${app.forum.attribute('baseUrl')}/downloads/depot.css?v=${stylesheet}`;
+    link.href = `${app.forum.attribute('baseUrl')}/downloads/stylesheet?v=${stylesheet}`;
     link.onload = link.onerror = resolve;
     document.head.appendChild(link);
   }));

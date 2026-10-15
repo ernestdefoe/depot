@@ -61,8 +61,10 @@ return [
     (new Extend\Routes('forum'))
         ->get('/downloads/get/{id:[0-9]+}', 'depot.download', DownloadController::class)
         // Depot's page styles, fetched with the page chunk instead of riding
-        // in every visitor's forum.css.
-        ->get('/downloads/depot.css', 'depot.css', StylesheetController::class),
+        // in every visitor's forum.css. No .css in the path: nginx configs
+        // (Flarum's own example among them) serve *.css as static files and
+        // never pass the request to PHP.
+        ->get('/downloads/stylesheet', 'depot.css', StylesheetController::class),
 
     (new Extend\Routes('api'))
         ->get('/depot/browse', 'depot.browse', Controller\BrowseController::class)
