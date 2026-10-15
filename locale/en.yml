@@ -193,12 +193,12 @@ ernestdefoe-depot:
 
   admin:
     permissions:
-      view: View Downloads
-      download: Download files
-      upload: Upload files
-      skipApproval: Upload without approval
-      review: Rate and review files
-      moderate: Approve, edit and delete files
+      view: View the downloads section
+      download: Download files from the downloads section
+      upload: Upload files to the downloads section
+      skipApproval: Upload to the downloads section without approval
+      review: Rate and review downloads
+      moderate: Approve, edit and delete downloads
     settings:
       count_window: Count a download once per
       count_window_help: Repeat downloads by the same member or address inside this window are not counted.

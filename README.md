@@ -78,4 +78,4 @@ Screenshots are taken with `node tools/shots.mjs` (headless Chrome, 2× density,
 
 ## Licence
 
-Proprietary. © Ernest Defoe.
+MIT. See [LICENSE](LICENSE).
