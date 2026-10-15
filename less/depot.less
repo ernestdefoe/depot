@@ -807,7 +807,11 @@
 
 // ------------------------------------------------------------------ download modal
 
-.DepotDownloadModal .Modal-body { display: flex; flex-direction: column; gap: 18px; }
+// Every Depot form spaces its fields the same way (core's .Form gap does the
+// job in core modals; these bodies hold their fields directly).
+.DepotDownloadModal, .DepotUploadModal, .DepotEditModal, .DepotReviewModal, .DepotVersionModal {
+  .Modal-body { display: flex; flex-direction: column; gap: 18px; }
+}
 .DepotDownload-head { display: flex; gap: 16px; align-items: center; h3 { margin: 0 0 2px; } p { margin: 0; } code { font-size: 12px; } }
 .DepotDownload-art { position: relative; flex: none; width: 72px; height: 72px; border-radius: 16px; }
 .DepotDownload-check {
@@ -844,7 +848,6 @@
 
 // ------------------------------------------------------------------ upload modal
 
-.DepotUploadModal .Modal-body { display: flex; flex-direction: column; gap: 18px; }
 .DepotSteps {
   list-style: none;
   margin: 0;
@@ -1134,7 +1137,7 @@ a.DepotReply:hover { text-decoration: none; color: var(--text-color); }
     &:hover { transform: scale(1.12); }
   }
 }
-.DepotStarPick-label { text-align: center; margin: 4px 0 14px; }
+.DepotStarPick-label { text-align: center; margin: -10px 0 0; }
 
 .DepotChanges-group--added, .DepotChanges-group--changed, .DepotChanges-group--fixed {
   &.Form-group { display: block; .DepotChanges-kind { display: inline-flex; margin-bottom: 6px; } }

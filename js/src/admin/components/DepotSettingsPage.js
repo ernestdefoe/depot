@@ -1,3 +1,4 @@
+import extractText from 'flarum/common/utils/extractText';
 import app from 'flarum/admin/app';
 import ExtensionPage from 'flarum/admin/components/ExtensionPage';
 import Button from 'flarum/common/components/Button';
@@ -138,7 +139,7 @@ export default class DepotSettingsPage extends ExtensionPage {
   }
 
   remove(c) {
-    if (!confirm(tr('categories.delete_confirm', { name: c.name }).toString())) return;
+    if (!confirm(extractText(tr('categories.delete_confirm', { name: c.name })))) return;
     api('DELETE', `categories/${c.id}`).then(() => api('GET', 'categories').then((r) => this.setCategories(r)));
   }
 }

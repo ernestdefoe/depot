@@ -1,3 +1,4 @@
+import extractText from 'flarum/common/utils/extractText';
 import FormModal from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
@@ -65,7 +66,7 @@ export default class VersionModal extends FormModal {
             maxlength="40"
             value={this.version}
             oninput={(e) => (this.version = e.target.value)}
-            placeholder={latest ? t('version.after', { version: latest.version }).toString() : '1.0.0'}
+            placeholder={latest ? extractText(t('version.after', { version: latest.version })) : '1.0.0'}
           />
         </div>
         {file.source === 'link' ? (

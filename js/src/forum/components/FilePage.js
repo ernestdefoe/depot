@@ -1,3 +1,4 @@
+import extractText from 'flarum/common/utils/extractText';
 import app from 'flarum/forum/app';
 import Page from 'flarum/common/components/Page';
 import PageStructure from 'flarum/forum/components/PageStructure';
@@ -168,13 +169,7 @@ export default class FilePage extends Page {
   controls(file) {
     const edit = (onsave) => app.modal.show(EditFileModal, { file, onsave });
     return (
-      <Dropdown
-        buttonClassName="Button"
-        icon="fas fa-ellipsis-h"
-        label={t('file.controls')}
-        accessibleToggleLabel={t('file.controls')}
-        menuClassName="Dropdown-menu--right"
-      >
+      <Dropdown buttonClassName="Button" label={t('file.controls')} accessibleToggleLabel={t('file.controls')} menuClassName="Dropdown-menu--right">
         {file.canEdit ? (
           <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
             {t('file.new_version')}
@@ -204,7 +199,7 @@ export default class FilePage extends Page {
 
   remove(file) {
     // The same confirm Flarum itself uses before deleting a discussion.
-    if (!confirm(t('file.delete_confirm', { title: file.title }).toString())) return;
+    if (!confirm(extractText(t('file.delete_confirm', { title: file.title })))) return;
     api.del(`files/${file.id}`).then(() => m.route.set(app.route('depot.index')));
   }
 
@@ -428,7 +423,7 @@ export default class FilePage extends Page {
   }
 
   removeVersion(v) {
-    if (!confirm(t('file.delete_version_confirm', { version: v.version }).toString())) return;
+    if (!confirm(extractText(t('file.delete_version_confirm', { version: v.version })))) return;
     api.del(`versions/${v.id}`).then(() => this.load());
   }
 
