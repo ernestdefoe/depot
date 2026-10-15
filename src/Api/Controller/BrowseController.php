@@ -79,19 +79,25 @@ class BrowseController implements RequestHandlerInterface
         };
         $query->orderByDesc('id');
 
-        $files = $query->with(['user', 'latest', 'category'])->skip($page * self::PER_PAGE)->take(self::PER_PAGE + 1)->get();
+        $files = $query->skip($page * self::PER_PAGE)->take(self::PER_PAGE + 1)->get();
         $more = $files->count() > self::PER_PAGE;
         $files = $files->take(self::PER_PAGE);
 
         $first = $page === 0 && $term === '' && $compat === '' && ! $mine && ! $watching && ! $queue;
 
+        // The spotlight's files are presented in the same batch as the list.
+        $featured = $first && ! $slug
+            ? File::query()->visibleTo($actor)->whereNotNull('approved_at')->where('featured', true)->orderByDesc('released_at')->take(5)->get()
+            : collect();
+        $cards = collect($this->presenter->cards($files->concat($featured->whereNotIn('id', $files->pluck('id')))))->keyBy('id');
+
         return new JsonResponse([
-            'files' => $this->presenter->cards($files),
+            'files' => $files->map(fn ($f) => $cards[$f->id])->values(),
             'hasMore' => $more,
             'page' => $page,
             'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c))->values(),
             'compat' => $this->compat($actor, $category),
-            'featured' => $first && ! $slug ? $this->presenter->cards(File::query()->visibleTo($actor)->whereNotNull('approved_at')->where('featured', true)->orderByDesc('released_at')->take(5)->get()) : [],
+            'featured' => $featured->map(fn ($f) => $cards[$f->id])->values(),
             'locked' => $first ? $this->locked($actor, $category) : [],
             'pending' => $actor->hasPermission('depot.moderate') ? File::query()->whereNull('approved_at')->count() : 0,
             'canUpload' => $actor->hasPermission('depot.upload'),

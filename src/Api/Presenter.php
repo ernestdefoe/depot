@@ -78,7 +78,7 @@ class Presenter
             return [];
         }
 
-        $files->loadMissing(['user', 'latest', 'category']);
+        $this->prime($files);
         $ids = $files->pluck('id')->all();
         $covers = $this->covers($ids);
         $trends = $this->trends($ids);
@@ -121,14 +121,47 @@ class Presenter
         ];
     }
 
-    /** The whole of one file, for its own page. */
-    public function full(File $f, User $actor): array
+    /**
+     * Relations a card needs, loaded once for the whole list: categories come
+     * from the tree the request already holds, authors and latest versions in
+     * one query each.
+     *
+     * @param Collection<int, File> $files
+     */
+    private function prime(Collection $files): void
     {
-        $f->loadMissing(['user', 'latest', 'category', 'versions', 'screenshots', 'discussion']);
-        $trends = $this->trends([$f->id]);
+        $tree = Category::tree()->keyBy('id');
+        foreach ($files as $f) {
+            if (! $f->relationLoaded('category')) {
+                $f->setRelation('category', $tree->get($f->category_id));
+            }
+        }
+        $files->loadMissing(['user', 'latest']);
+    }
 
-        $reviews = $f->reviews()->with(['user', 'version'])
+    /**
+     * The whole of one file for its own page, with its related files as cards
+     * — all of them presented from one batch.
+     *
+     * @param Collection<int, File> $related
+     */
+    public function full(File $f, User $actor, Collection $related): array
+    {
+        $f->loadMissing(['versions', 'screenshots', 'discussion']);
+        // The latest version is one of the versions just loaded.
+        $f->setRelation('latest', $f->versions->firstWhere('id', $f->latest_version_id));
+
+        $all = (new \Illuminate\Database\Eloquent\Collection([$f]))->concat($related);
+        $this->prime($all);
+        $ids = $all->pluck('id')->all();
+        $covers = $this->covers($ids);
+        $trends = $this->trends($ids);
+
+        $reviews = $f->reviews()->with('user')
             ->orderByDesc('helpful_count')->orderByDesc('id')->take(30)->get();
+        foreach ($reviews as $r) {
+            $r->setRelation('version', $f->versions->firstWhere('id', $r->version_id));
+        }
 
         $helpful = $actor->exists && $reviews->isNotEmpty()
             ? $this->db->table('depot_review_helpful')->where('user_id', $actor->id)->whereIn('review_id', $reviews->pluck('id'))->pluck('review_id')->all()
@@ -143,6 +176,7 @@ class Presenter
             ->selectRaw('count(*) as files, coalesce(sum(download_count), 0) as downloads')->first() : null;
 
         return $this->card($f, $f->screenshots->first(), $trends[$f->id] ?? null) + [
+            'related' => $related->map(fn (File $r) => $this->card($r, $covers[$r->id] ?? null, $trends[$r->id] ?? null))->values()->all(),
             'description' => $f->description,
             'licence' => $f->licence,
             'fields' => $f->fields ?: [],

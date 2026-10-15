@@ -61,6 +61,7 @@ return [
             $table->index(['approved_at', 'download_count'], 'depot_files_popular');
             $table->index(['user_id', 'created_at']);
             $table->index(['source', 'synced_at']);
+            $table->index(['featured', 'released_at']);
 
             $table->foreign('category_id')->references('id')->on('depot_categories')->nullOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();

@@ -28,11 +28,10 @@ class ShowFileController implements RequestHandlerInterface
 
         $related = File::query()->visibleTo($actor)->whereNotNull('approved_at')
             ->where('id', '!=', $file->id)
-            ->where(fn ($q) => $q->where('user_id', $file->user_id)->orWhereIn('category_id', $file->category ? $file->category->withChildren() : [0]))
+            ->where(fn ($q) => $q->where('user_id', $file->user_id)->orWhereIn('category_id', optional(Category::tree()->firstWhere('id', $file->category_id))->withChildren() ?: [0]))
             ->orderByDesc('download_count')->take(3)->get();
 
-        return new JsonResponse($this->presenter->full($file, $actor) + [
-            'related' => $this->presenter->cards($related),
+        return new JsonResponse($this->presenter->full($file, $actor, $related) + [
             'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c))->values(),
         ]);
     }
