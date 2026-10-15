@@ -24,7 +24,7 @@ export const api = {
 };
 
 /** Categories, as last sent by the server. Every page response carries them. */
-export const state = { categories: [] };
+export const state = { categories: [], file: null };
 
 export const category = (slug) => state.categories.find((c) => c.slug === slug);
 export const rootOf = (c) => (c && c.parent ? category(c.parent) : c);

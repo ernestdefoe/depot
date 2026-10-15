@@ -45,6 +45,8 @@ export default class FilePage extends Page {
     return api.get('file', { slug: m.route.param('slug') }).then(
       (file) => {
         state.categories = file.categories;
+        // Shared so Waymark's trail can name the file and its categories.
+        state.file = file;
         this.file = file;
         m.redraw();
       },
