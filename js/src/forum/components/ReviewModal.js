@@ -28,7 +28,14 @@ export default class ReviewModal extends FormModal {
       <div className="Modal-body">
         <div className="DepotStarPick" role="radiogroup" aria-label={t('review.rating')} onmouseleave={() => (this.hover = 0)}>
           {[1, 2, 3, 4, 5].map((n) => (
-            <button type="button" role="radio" aria-checked={this.rating === n ? 'true' : 'false'} aria-label={t('review.stars', { count: n })} onmouseenter={() => (this.hover = n)} onclick={() => (this.rating = n)}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={this.rating === n ? 'true' : 'false'}
+              aria-label={t('review.stars', { count: n })}
+              onmouseenter={() => (this.hover = n)}
+              onclick={() => (this.rating = n)}
+            >
               <Icon name={n <= shown ? 'fas fa-star' : 'far fa-star'} />
             </button>
           ))}
@@ -36,7 +43,15 @@ export default class ReviewModal extends FormModal {
         <p className="DepotStarPick-label Depot-dim">{shown ? t(`review.label_${shown}`) : t('review.pick')}</p>
         <div className="Form-group">
           <label for="depot-review">{t('review.body_label')}</label>
-          <textarea id="depot-review" className="FormControl" rows="5" maxlength="5000" value={this.body} oninput={(e) => (this.body = e.target.value)} placeholder={t('review.body_placeholder').toString()} />
+          <textarea
+            id="depot-review"
+            className="FormControl"
+            rows="5"
+            maxlength="5000"
+            value={this.body}
+            oninput={(e) => (this.body = e.target.value)}
+            placeholder={t('review.body_placeholder').toString()}
+          />
         </div>
         <Button className="Button Button--primary Button--block" type="submit" loading={this.loading} disabled={!this.rating}>
           {this.attrs.review ? t('review.update') : t('review.submit')}

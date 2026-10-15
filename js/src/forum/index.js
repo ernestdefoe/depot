@@ -63,7 +63,9 @@ app.initializers.add('ernestdefoe-depot', () => {
   app.store.models['depot-files'] = DepotFile;
 
   // `user` is a reserved translator placeholder, so the uploader is `username`.
-  app.notificationComponents.depotNewVersion = notification('fas fa-box-open', 'notifications.new_version', (n) => ({ version: n.content()?.version || '' }));
+  app.notificationComponents.depotNewVersion = notification('fas fa-box-open', 'notifications.new_version', (n) => ({
+    version: n.content()?.version || '',
+  }));
   app.notificationComponents.depotFileApproved = notification('fas fa-check', 'notifications.approved', () => ({}));
 
   extend('flarum/forum/components/NotificationGrid', 'notificationTypes', function (items) {

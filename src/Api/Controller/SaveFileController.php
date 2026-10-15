@@ -13,6 +13,7 @@ use ErnestDefoe\Depot\Service\SupportThread;
 use ErnestDefoe\Depot\Storage\Store;
 use Flarum\Post\Exception\FloodingException;
 use Flarum\Settings\SettingsRepositoryInterface;
+use Flarum\User\User;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
@@ -76,7 +77,7 @@ class SaveFileController implements RequestHandlerInterface
             $file->repo = $repo;
         }
 
-        $upload = $uploads['file'] ?? null;
+        $upload = ($uploads['file'] ?? null) instanceof UploadedFileInterface ? $uploads['file'] : null;
         $link = trim((string) Arr::get($in, 'link', ''));
         if ($creating && $source === 'upload' && ! $upload instanceof UploadedFileInterface) {
             $this->fail('file', 'no_file');
@@ -127,7 +128,7 @@ class SaveFileController implements RequestHandlerInterface
      * moderators are not counted. Enough for anyone publishing a set, too few
      * to fill a disk or bury the approval queue.
      */
-    private function throttle($actor): void
+    private function throttle(User $actor): void
     {
         if ($actor->hasPermission('depot.moderate')) {
             return;
@@ -139,7 +140,7 @@ class SaveFileController implements RequestHandlerInterface
         }
     }
 
-    private function write(File $file, bool $creating, array $in, string $source, $upload, string $link, array $shots): void
+    private function write(File $file, bool $creating, array $in, string $source, ?UploadedFileInterface $upload, string $link, array $shots): void
     {
         $file->save();
 
@@ -155,7 +156,7 @@ class SaveFileController implements RequestHandlerInterface
         $this->screenshots($file, $shots);
     }
 
-    private function details(File $file, array $in, $actor, bool $creating): void
+    private function details(File $file, array $in, User $actor, bool $creating): void
     {
         $title = trim((string) Arr::get($in, 'title', $file->title));
         if ($title === '' || mb_strlen($title) > 120) {

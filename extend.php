@@ -106,7 +106,9 @@ return [
 
     (new Extend\Console())
         ->command(SyncGitHubCommand::class)
-        ->schedule(SyncGitHubCommand::class, fn (Event $event) => $event->hourly()->withoutOverlapping()),
+        ->schedule(SyncGitHubCommand::class, function (Event $event): void {
+            $event->hourly()->withoutOverlapping();
+        }),
 
     (new Extend\Settings())
         ->default('ernestdefoe-depot.count_window', '24')

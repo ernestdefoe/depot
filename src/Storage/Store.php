@@ -4,6 +4,7 @@ namespace ErnestDefoe\Depot\Storage;
 
 use Flarum\Foundation\ValidationException;
 use Illuminate\Contracts\Filesystem\Factory as Filesystem;
+use Illuminate\Contracts\Filesystem\Cloud;
 use Illuminate\Contracts\Filesystem\Filesystem as Disk;
 use Psr\Http\Message\UploadedFileInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -50,8 +51,10 @@ class Store
         return $this->filesystem->disk(self::FILES);
     }
 
-    public function media(): Disk
+    /** Public, so it is a Cloud disk: it has URLs. */
+    public function media(): Cloud
     {
+        /** @var Cloud */
         return $this->filesystem->disk(self::MEDIA);
     }
 

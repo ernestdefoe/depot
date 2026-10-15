@@ -44,7 +44,14 @@ export default class CategoryModal extends FormModal {
         </div>
         <div className="Form-group">
           <label for="depot-cat-slug">{tr('categories.slug')}</label>
-          <input id="depot-cat-slug" className="FormControl" maxlength="100" value={v.slug} oninput={set('slug')} placeholder={tr('categories.slug_auto').toString()} />
+          <input
+            id="depot-cat-slug"
+            className="FormControl"
+            maxlength="100"
+            value={v.slug}
+            oninput={set('slug')}
+            placeholder={tr('categories.slug_auto').toString()}
+          />
         </div>
         <div className="Form-group">
           <label for="depot-cat-desc">{tr('categories.description')}</label>

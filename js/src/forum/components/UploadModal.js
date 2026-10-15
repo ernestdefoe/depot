@@ -133,7 +133,13 @@ export default class UploadModal extends FormModal {
       <div className="DepotUpload-source">
         <div className="DepotChoice" role="radiogroup">
           {SOURCES.map(([key, icon]) => (
-            <button type="button" role="radio" aria-checked={this.origin === key ? 'true' : 'false'} className={this.origin === key ? 'is-active' : ''} onclick={() => (this.origin = key)}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={this.origin === key ? 'true' : 'false'}
+              className={this.origin === key ? 'is-active' : ''}
+              onclick={() => (this.origin = key)}
+            >
               <Icon name={icon} />
               <b>{t(`upload.source_${key}`)}</b>
               <span>{t(`upload.source_${key}_help`)}</span>
@@ -142,13 +148,28 @@ export default class UploadModal extends FormModal {
         </div>
 
         {this.origin === 'upload' ? this.dropzone() : null}
-        {this.origin === 'link' ? this.field('depot-link', t('upload.link_label'), this.link, (v) => (this.link = v.trim()), { placeholder: 'https://…' }, t('upload.link_help')) : null}
+        {this.origin === 'link'
+          ? this.field(
+              'depot-link',
+              t('upload.link_label'),
+              this.link,
+              (v) => (this.link = v.trim()),
+              { placeholder: 'https://…' },
+              t('upload.link_help')
+            )
+          : null}
         {this.origin === 'github' ? (
           <div className="Form-group">
             <label for="depot-repo">{t('upload.repo_label')}</label>
             <div className="Depot-inputPrefix">
               <span>github.com/</span>
-              <input id="depot-repo" className="FormControl" placeholder="owner/repository" value={this.repo} oninput={(e) => (this.repo = e.target.value.trim())} />
+              <input
+                id="depot-repo"
+                className="FormControl"
+                placeholder="owner/repository"
+                value={this.repo}
+                oninput={(e) => (this.repo = e.target.value.trim())}
+              />
             </div>
             <p className="helpText">{t('upload.repo_help')}</p>
           </div>
@@ -202,7 +223,11 @@ export default class UploadModal extends FormModal {
   async take(file) {
     this.file = file;
     this.hash = null;
-    if (!this.fileTitle) this.fileTitle = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    if (!this.fileTitle)
+      this.fileTitle = file.name
+        .replace(/\.[^.]+$/, '')
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
     if (this.tooLarge()) return m.redraw();
 
     this.hashing = true;
@@ -247,7 +272,11 @@ export default class UploadModal extends FormModal {
               ))}
             </select>
           </div>
-          {this.origin !== 'github' ? this.field('depot-version', t('upload.version_label'), this.version, (v) => (this.version = v), { maxlength: 40 }) : <span />}
+          {this.origin !== 'github' ? (
+            this.field('depot-version', t('upload.version_label'), this.version, (v) => (this.version = v), { maxlength: 40 })
+          ) : (
+            <span />
+          )}
         </div>
         {this.field(
           'depot-tagline',
@@ -259,12 +288,32 @@ export default class UploadModal extends FormModal {
         )}
         {this.field('depot-description', t('upload.description_label'), this.description, (v) => (this.description = v), { rows: 4 })}
         <div className="Depot-row2">
-          {this.field('depot-game', t('upload.game_label'), this.game, (v) => (this.game = v), { maxlength: 60, placeholder: extractText(t('upload.game_placeholder')) })}
-          {this.field('depot-compat', t('upload.compat_label'), this.compat, (v) => (this.compat = v), { placeholder: '1.21.4, 1.21.3' }, t('upload.compat_help'))}
+          {this.field('depot-game', t('upload.game_label'), this.game, (v) => (this.game = v), {
+            maxlength: 60,
+            placeholder: extractText(t('upload.game_placeholder')),
+          })}
+          {this.field(
+            'depot-compat',
+            t('upload.compat_label'),
+            this.compat,
+            (v) => (this.compat = v),
+            { placeholder: '1.21.4, 1.21.3' },
+            t('upload.compat_help')
+          )}
         </div>
-        {this.field('depot-licence', t('upload.licence_label'), this.licence, (v) => (this.licence = v), { maxlength: 60, placeholder: 'MIT, CC BY 4.0…' })}
+        {this.field('depot-licence', t('upload.licence_label'), this.licence, (v) => (this.licence = v), {
+          maxlength: 60,
+          placeholder: 'MIT, CC BY 4.0…',
+        })}
         {this.field('depot-install', t('upload.install_label'), this.install, (v) => (this.install = v), { rows: 3 }, t('upload.lines_help'))}
-        {this.field('depot-requires', t('upload.requires_label'), this.requires, (v) => (this.requires = v), { rows: 2, placeholder: extractText(t('upload.requires_placeholder')) }, t('upload.requires_help'))}
+        {this.field(
+          'depot-requires',
+          t('upload.requires_label'),
+          this.requires,
+          (v) => (this.requires = v),
+          { rows: 2, placeholder: extractText(t('upload.requires_placeholder')) },
+          t('upload.requires_help')
+        )}
       </div>
     );
   }
@@ -304,7 +353,13 @@ export default class UploadModal extends FormModal {
   tags() {
     return (app.store.all('tags') || [])
       .filter((tag) => tag.isPrimary() && !tag.parent() && tag.canStartDiscussion())
-      .map((tag) => ({ id: tag.id(), name: tag.name(), color: tag.color() || 'var(--control-color)', icon: tag.icon(), description: tag.description() }));
+      .map((tag) => ({
+        id: tag.id(),
+        name: tag.name(),
+        color: tag.color() || 'var(--control-color)',
+        icon: tag.icon(),
+        description: tag.description(),
+      }));
   }
 
   support() {
@@ -415,7 +470,13 @@ export default class UploadModal extends FormModal {
               {this.fileTitle} {this.origin !== 'github' ? <span className="Depot-dim">v{this.version}</span> : null}
             </h3>
             <p className="Depot-dim">{this.tagline || t('upload.no_tagline')}</p>
-            <p className="Depot-dim">{this.origin === 'upload' && this.file ? `${this.file.name} · ${bytes(this.file.size)}` : this.origin === 'link' ? this.link : `github.com/${this.repo}`}</p>
+            <p className="Depot-dim">
+              {this.origin === 'upload' && this.file
+                ? `${this.file.name} · ${bytes(this.file.size)}`
+                : this.origin === 'link'
+                  ? this.link
+                  : `github.com/${this.repo}`}
+            </p>
           </div>
         </div>
         {this.thread.on && this.steps().includes('support') ? (
@@ -465,7 +526,10 @@ export default class UploadModal extends FormModal {
       .then(
         (r) => {
           this.hide();
-          app.alerts.show({ type: 'success' }, r.approved ? t('upload.published', { title: this.fileTitle }) : t('upload.submitted', { title: this.fileTitle }));
+          app.alerts.show(
+            { type: 'success' },
+            r.approved ? t('upload.published', { title: this.fileTitle }) : t('upload.submitted', { title: this.fileTitle })
+          );
           m.route.set(app.route('depot.file', { slug: r.slug }));
         },
         (error) => {

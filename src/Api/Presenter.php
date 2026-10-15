@@ -12,7 +12,9 @@ use ErnestDefoe\Depot\Storage\Store;
 use Flarum\Http\UrlGenerator;
 use Flarum\User\User;
 use Illuminate\Database\ConnectionInterface;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Collection;
+use Flarum\Discussion\Discussion;
+use Flarum\Extension\ExtensionManager;
 
 /**
  * Every shape the API sends, in one place.
@@ -29,6 +31,7 @@ class Presenter
         private Store $store,
         private UrlGenerator $url,
         private ConnectionInterface $db,
+        private ExtensionManager $extensions,
     ) {
     }
 
@@ -151,7 +154,7 @@ class Presenter
         // The latest version is one of the versions just loaded.
         $f->setRelation('latest', $f->versions->firstWhere('id', $f->latest_version_id));
 
-        $all = (new \Illuminate\Database\Eloquent\Collection([$f]))->concat($related);
+        $all = (new Collection([$f]))->concat($related);
         $this->prime($all);
         $ids = $all->pluck('id')->all();
         $covers = $this->covers($ids);
@@ -246,18 +249,17 @@ class Presenter
     /** The support discussion, only for people allowed to see it (a restricted tag, a hidden discussion). */
     private function discussion(File $f, User $actor): ?array
     {
-        $d = $f->discussion_id ? \Flarum\Discussion\Discussion::query()->whereVisibleTo($actor)->find($f->discussion_id) : null;
+        $d = $f->discussion_id ? Discussion::query()->whereVisibleTo($actor)->find($f->discussion_id) : null;
         if (! $d) {
             return null;
         }
 
-        // flarum/tags adds the relation at runtime, so it is asked for rather
-        // than detected: without the extension there is simply no tag.
+        // A primary tag first. Asked only when flarum/tags is on; its tables
+        // may exist while the extension is off.
         $tag = null;
-        try {
-            $t = $d->tags()->orderByRaw('parent_id is not null')->first();
+        if ($this->extensions->isEnabled('flarum-tags')) {
+            $t = $d->belongsToMany(\Flarum\Tags\Tag::class, 'discussion_tag')->orderByRaw('parent_id is not null')->first();
             $tag = $t ? ['name' => $t->name, 'color' => $t->color, 'slug' => $t->slug] : null;
-        } catch (\BadMethodCallException) {
         }
 
         return [

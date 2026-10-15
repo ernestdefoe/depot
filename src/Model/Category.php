@@ -74,7 +74,11 @@ class Category extends AbstractModel
         return self::$all ??= self::query()->with('groups')->orderBy('position')->orderBy('name')->get();
     }
 
-    /** The groups that open this category: its own, or its parent's when it has none. */
+    /**
+     * The groups that open this category: its own, or its parent's when it has none.
+     *
+     * @return Collection<int, Group>
+     */
     public function lockGroups(): Collection
     {
         if ($this->groups->isNotEmpty() || ! $this->parent_id) {

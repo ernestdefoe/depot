@@ -92,7 +92,10 @@ export default class DepotSettingsPage extends ExtensionPage {
         <span className="DepotCategories-name">
           <b>{c.name}</b>
           <span className="helpText">
-            /downloads/c/{c.slug} · {tr('categories.files', { count: c.parent ? c.count : this.categories.filter((s) => s.parent === c.slug).reduce((n, s) => n + s.count, c.count) })}
+            /downloads/c/{c.slug} ·{' '}
+            {tr('categories.files', {
+              count: c.parent ? c.count : this.categories.filter((s) => s.parent === c.slug).reduce((n, s) => n + s.count, c.count),
+            })}
             {/* The translator returns an array once it interpolates: render it as children, never inside a template string. */}
             {c.locked ? [' · ', tr('categories.locked_to', { groups: c.groups.join(', ') })] : null}
           </span>
@@ -125,7 +128,9 @@ export default class DepotSettingsPage extends ExtensionPage {
     this.categories = rest;
 
     const bySlug = Object.fromEntries(rest.map((c) => [c.slug, c.id]));
-    api('POST', 'categories/order', { order: rest.map((c) => ({ id: c.id, parent: c.parent ? bySlug[c.parent] : null })) }).then((r) => this.setCategories(r));
+    api('POST', 'categories/order', { order: rest.map((c) => ({ id: c.id, parent: c.parent ? bySlug[c.parent] : null })) }).then((r) =>
+      this.setCategories(r)
+    );
   }
 
   edit(category) {

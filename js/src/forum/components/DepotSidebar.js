@@ -45,22 +45,45 @@ export default class DepotSidebar extends IndexSidebar {
   navItems() {
     const items = new ItemList();
 
-    items.add('depotAll', <LinkButton href={app.route('depot.index')} icon="fas fa-box-open">{t('nav.all')}</LinkButton>, 100);
+    items.add(
+      'depotAll',
+      <LinkButton href={app.route('depot.index')} icon="fas fa-box-open">
+        {t('nav.all')}
+      </LinkButton>,
+      100
+    );
     if (app.session.user) {
-      items.add('depotWatching', <LinkButton href={app.route('depot.index', { filter: 'watching' })} icon="far fa-bell">{t('nav.watching')}</LinkButton>, 90);
-      items.add('depotMine', <LinkButton href={app.route('depot.index', { filter: 'mine' })} icon="far fa-user">{t('nav.mine')}</LinkButton>, 80);
+      items.add(
+        'depotWatching',
+        <LinkButton href={app.route('depot.index', { filter: 'watching' })} icon="far fa-bell">
+          {t('nav.watching')}
+        </LinkButton>,
+        90
+      );
+      items.add(
+        'depotMine',
+        <LinkButton href={app.route('depot.index', { filter: 'mine' })} icon="far fa-user">
+          {t('nav.mine')}
+        </LinkButton>,
+        80
+      );
     }
     items.add('depotSeparator', <Separator />, 70);
 
     roots().forEach((c, i) =>
-        items.add(
-          `depot-${c.slug}`,
-          <LinkButton href={app.route('depot.category', { slug: c.slug })} icon={c.locked ? 'fas fa-lock' : c.icon || 'fas fa-folder'} className="Depot-nav-root" style={{ '--label-color': c.color }}>
-            {c.name}
-          </LinkButton>,
-          60 - i
-        )
-      );
+      items.add(
+        `depot-${c.slug}`,
+        <LinkButton
+          href={app.route('depot.category', { slug: c.slug })}
+          icon={c.locked ? 'fas fa-lock' : c.icon || 'fas fa-folder'}
+          className="Depot-nav-root"
+          style={{ '--label-color': c.color }}
+        >
+          {c.name}
+        </LinkButton>,
+        60 - i
+      )
+    );
 
     return items;
   }

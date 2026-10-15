@@ -287,7 +287,11 @@ export default class DepotPage extends Page {
         {list.map((c) => {
           const count = childrenOf(c.slug).reduce((n, s) => n + s.count, c.count);
           return (
-            <a className={`DepotTile ${c.locked ? 'DepotTile--locked' : ''}`} href={app.route('depot.category', { slug: c.slug })} style={{ '--label-color': c.color || 'var(--primary-color)' }}>
+            <a
+              className={`DepotTile ${c.locked ? 'DepotTile--locked' : ''}`}
+              href={app.route('depot.category', { slug: c.slug })}
+              style={{ '--label-color': c.color || 'var(--primary-color)' }}
+            >
               <span className="DepotTile-art" style={this.tileArt(c)} />
               <span className="DepotTile-icon">
                 <Icon name={c.locked ? 'fas fa-lock' : c.icon || 'fas fa-folder'} />

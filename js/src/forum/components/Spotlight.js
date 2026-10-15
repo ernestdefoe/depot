@@ -62,48 +62,52 @@ export default class Spotlight extends Component {
         onfocusout={() => (this.paused = false)}
       >
         {files.map((f, i) => (
-          <div className={`DepotSpotlight-art ${i === this.index ? 'is-active' : ''} ${f.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(f, 'full')} aria-hidden="true" />
+          <div
+            className={`DepotSpotlight-art ${i === this.index ? 'is-active' : ''} ${f.cover ? '' : 'Depot-cover--empty'}`}
+            style={coverStyle(f, 'full')}
+            aria-hidden="true"
+          />
         ))}
         <div className="DepotSpotlight-shade" />
 
         <div className="DepotSpotlight-content Page-container container">
           {[
-          <div className="DepotSpotlight-swap" key={file.slug}>
-          <div className="DepotSpotlight-text">
-            <span className="DepotSpotlight-eyebrow">
-              <Icon name="fas fa-star" /> {t('spotlight.featured')}
-            </span>
-            <h1 className="DepotSpotlight-title">{file.title}</h1>
-            <p className="DepotSpotlight-tagline">{file.tagline}</p>
-            <div className="DepotSpotlight-facts">
-              {CategoryLabels({ slug: file.category, link: false })}
-              {v.version ? <span>v{v.version}</span> : null}
-              {file.game || file.compat.length ? <span>{[file.game, file.compat[0]].filter(Boolean).join(' ')}</span> : null}
-              {v.size ? <span>{bytes(v.size)}</span> : null}
-            </div>
-            <div className="DepotSpotlight-actions">
-              <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
-                {t('spotlight.download', { version: v.version })}
-              </Button>
-              <a className="Button Button--large DepotSpotlight-ghost" href={app.route('depot.file', { slug: file.slug })}>
-                {t('spotlight.details')}
-              </a>
-            </div>
-          </div>
-
-          <div className="DepotSpotlight-side">
-            <div className="DepotSpotlight-stat">
-              <b>{compact(file.downloads)}</b>
-              <span>{t('spotlight.downloads')}</span>
-            </div>
-            {file.ratings ? (
-              <div className="DepotSpotlight-stat">
-                <b>{file.rating.toFixed(1)}</b>
-                {Stars({ value: file.rating })}
+            <div className="DepotSpotlight-swap" key={file.slug}>
+              <div className="DepotSpotlight-text">
+                <span className="DepotSpotlight-eyebrow">
+                  <Icon name="fas fa-star" /> {t('spotlight.featured')}
+                </span>
+                <h1 className="DepotSpotlight-title">{file.title}</h1>
+                <p className="DepotSpotlight-tagline">{file.tagline}</p>
+                <div className="DepotSpotlight-facts">
+                  {CategoryLabels({ slug: file.category, link: false })}
+                  {v.version ? <span>v{v.version}</span> : null}
+                  {file.game || file.compat.length ? <span>{[file.game, file.compat[0]].filter(Boolean).join(' ')}</span> : null}
+                  {v.size ? <span>{bytes(v.size)}</span> : null}
+                </div>
+                <div className="DepotSpotlight-actions">
+                  <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
+                    {t('spotlight.download', { version: v.version })}
+                  </Button>
+                  <a className="Button Button--large DepotSpotlight-ghost" href={app.route('depot.file', { slug: file.slug })}>
+                    {t('spotlight.details')}
+                  </a>
+                </div>
               </div>
-            ) : null}
-          </div>
-          </div>,
+
+              <div className="DepotSpotlight-side">
+                <div className="DepotSpotlight-stat">
+                  <b>{compact(file.downloads)}</b>
+                  <span>{t('spotlight.downloads')}</span>
+                </div>
+                {file.ratings ? (
+                  <div className="DepotSpotlight-stat">
+                    <b>{file.rating.toFixed(1)}</b>
+                    {Stars({ value: file.rating })}
+                  </div>
+                ) : null}
+              </div>
+            </div>,
           ]}
         </div>
 
@@ -117,7 +121,11 @@ export default class Spotlight extends Component {
               aria-current={i === this.index ? 'true' : undefined}
               onclick={() => this.go(i)}
             >
-              <span className="DepotSpotlight-progress" style={{ animationPlayState: this.paused || this.still ? 'paused' : 'running' }} key={`${this.index}-${i}`} />
+              <span
+                className="DepotSpotlight-progress"
+                style={{ animationPlayState: this.paused || this.still ? 'paused' : 'running' }}
+                key={`${this.index}-${i}`}
+              />
             </button>
           ))}
         </div>

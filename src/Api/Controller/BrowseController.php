@@ -6,6 +6,7 @@ use ErnestDefoe\Depot\Api\Concerns;
 use ErnestDefoe\Depot\Api\Presenter;
 use ErnestDefoe\Depot\Model\Category;
 use ErnestDefoe\Depot\Model\File;
+use Flarum\User\User;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -62,8 +63,13 @@ class BrowseController implements RequestHandlerInterface
             $query->whereIn('category_id', $category ? $category->withChildren() : [0]);
         }
 
+        // The stored JSON contains the value exactly as json_encode writes it,
+        // quotes included, so a LIKE on that text matches whole entries only.
+        // Not whereJsonContains: on SQLite, Laravel prefixes json_each() with
+        // the table prefix and every prefixed forum gets a 500.
         if ($compat !== '') {
-            $query->whereJsonContains('compat', $compat);
+            $needle = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], json_encode($compat));
+            $query->where('compat', 'like', '%'.$needle.'%');
         }
 
         if ($term !== '') {
@@ -105,7 +111,7 @@ class BrowseController implements RequestHandlerInterface
     }
 
     /** The versions files in this view say they work with, newest first, for the filter chips. */
-    private function compat($actor, ?Category $category): array
+    private function compat(User $actor, ?Category $category): array
     {
         if (! $category) {
             return [];
@@ -124,7 +130,7 @@ class BrowseController implements RequestHandlerInterface
      * Locked categories, advertised: a name, a count and who it is for. No
      * file data at all — titles and pictures are what membership buys.
      */
-    private function locked($actor, ?Category $category): array
+    private function locked(User $actor, ?Category $category): array
     {
         $locked = Category::lockedFor($actor);
 

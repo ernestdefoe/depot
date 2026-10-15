@@ -68,7 +68,10 @@ export function CategoryLabels({ slug, link = true }) {
   if (!c) return null;
   const root = rootOf(c);
   const label = (cat, outline) => {
-    const attrs = { className: `Depot-label ${outline ? 'Depot-label--outline' : ''}`, style: { '--label-color': cat.color || 'var(--control-color)' } };
+    const attrs = {
+      className: `Depot-label ${outline ? 'Depot-label--outline' : ''}`,
+      style: { '--label-color': cat.color || 'var(--control-color)' },
+    };
     return link ? (
       <a {...attrs} href={app.route('depot.category', { slug: cat.slug })} onclick={(e) => e.stopPropagation()}>
         {cat.name}

@@ -36,7 +36,14 @@ export default class VersionModal extends FormModal {
         <label for={`depot-${key}`} className="DepotChanges-kind">
           <Icon name={icon} /> {t(`file.change_${key}`)}
         </label>
-        <textarea id={`depot-${key}`} className="FormControl" rows="2" value={this[key]} oninput={(e) => (this[key] = e.target.value)} placeholder={t('version.lines').toString()} />
+        <textarea
+          id={`depot-${key}`}
+          className="FormControl"
+          rows="2"
+          value={this[key]}
+          oninput={(e) => (this[key] = e.target.value)}
+          placeholder={t('version.lines').toString()}
+        />
       </div>
     );
 
@@ -52,12 +59,25 @@ export default class VersionModal extends FormModal {
       <div className="Modal-body">
         <div className="Form-group">
           <label for="depot-v">{t('version.number')}</label>
-          <input id="depot-v" className="FormControl" maxlength="40" value={this.version} oninput={(e) => (this.version = e.target.value)} placeholder={latest ? t('version.after', { version: latest.version }).toString() : '1.0.0'} />
+          <input
+            id="depot-v"
+            className="FormControl"
+            maxlength="40"
+            value={this.version}
+            oninput={(e) => (this.version = e.target.value)}
+            placeholder={latest ? t('version.after', { version: latest.version }).toString() : '1.0.0'}
+          />
         </div>
         {file.source === 'link' ? (
           <div className="Form-group">
             <label for="depot-vlink">{t('upload.link_label')}</label>
-            <input id="depot-vlink" className="FormControl" value={this.link} oninput={(e) => (this.link = e.target.value.trim())} placeholder="https://…" />
+            <input
+              id="depot-vlink"
+              className="FormControl"
+              value={this.link}
+              oninput={(e) => (this.link = e.target.value.trim())}
+              placeholder="https://…"
+            />
           </div>
         ) : (
           <label className={`DepotDrop ${this.upload ? 'has-file' : ''}`}>
@@ -82,7 +102,12 @@ export default class VersionModal extends FormModal {
         {box('added', 'fas fa-plus')}
         {box('changed', 'fas fa-pen')}
         {box('fixed', 'fas fa-wrench')}
-        <Button className="Button Button--primary Button--block" type="submit" loading={this.loading} disabled={!this.version.trim() || (file.source === 'link' ? !this.link : !this.upload)}>
+        <Button
+          className="Button Button--primary Button--block"
+          type="submit"
+          loading={this.loading}
+          disabled={!this.version.trim() || (file.source === 'link' ? !this.link : !this.upload)}
+        >
           {this.loading && this.progress ? t('upload.sending', { percent: Math.round(this.progress * 100) }) : t('version.save')}
         </Button>
       </div>
@@ -96,15 +121,17 @@ export default class VersionModal extends FormModal {
     if (this.upload) form.append('file', this.upload);
 
     this.loading = true;
-    api.upload(`files/${this.attrs.file.id}/versions`, form, (p) => ((this.progress = p), m.redraw())).then(
-      () => {
-        this.hide();
-        this.attrs.onsave && this.attrs.onsave();
-      },
-      (error) => {
-        this.loading = false;
-        this.onerror(error);
-      }
-    );
+    api
+      .upload(`files/${this.attrs.file.id}/versions`, form, (p) => ((this.progress = p), m.redraw()))
+      .then(
+        () => {
+          this.hide();
+          this.attrs.onsave && this.attrs.onsave();
+        },
+        (error) => {
+          this.loading = false;
+          this.onerror(error);
+        }
+      );
   }
 }

@@ -5,6 +5,10 @@ namespace ErnestDefoe\Depot\Service;
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Model\File;
 use Flarum\Discussion\Discussion;
+use Flarum\Extension\ExtensionManager;
+use Flarum\Foundation\DispatchEventsTrait;
+use Flarum\Post\Event\Posted;
+use Illuminate\Contracts\Events\Dispatcher;
 use Flarum\Http\UrlGenerator;
 use Flarum\Post\CommentPost;
 use Flarum\Settings\SettingsRepositoryInterface;
@@ -19,10 +23,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
  */
 class SupportThread
 {
+    use DispatchEventsTrait;
+
     public function __construct(
         private UrlGenerator $url,
         private TranslatorInterface $translator,
         private SettingsRepositoryInterface $settings,
+        private ExtensionManager $extensions,
+        protected Dispatcher $events,
     ) {
     }
 
@@ -66,17 +74,20 @@ class SupportThread
         $post->save();
 
         $discussion->setFirstPost($post)->setLastPost($post);
-        $discussion->comment_count = 1;
-        $discussion->participant_count = 1;
+        $discussion->refreshCommentCount();
+        $discussion->refreshParticipantCount();
         $discussion->save();
 
-        if ($file->thread_tag_id) {
-            try {
-                $discussion->tags()->sync([$file->thread_tag_id]);
-            } catch (\BadMethodCallException) {
-                // flarum/tags was switched off after the file was uploaded.
-            }
+        if ($file->thread_tag_id && $this->extensions->isEnabled('flarum-tags')) {
+            $discussion->belongsToMany(\Flarum\Tags\Tag::class, 'discussion_tag')->sync([$file->thread_tag_id]);
+            $discussion->unsetRelation('tags');
         }
+
+        // The events a discussion started through the API would fire, so tag
+        // and user counts, subscriptions and other extensions all hear of it.
+        $post->raise(new Posted($post, $author));
+        $this->dispatchEventsFor($discussion, $author);
+        $this->dispatchEventsFor($post, $author);
 
         $file->discussion_id = $discussion->id;
         $file->saveQuietly();

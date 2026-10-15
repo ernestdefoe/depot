@@ -79,12 +79,18 @@ export default class DownloadModal extends Modal {
     return (
       <div className="Modal-body">
         <div className="DepotDownload-head">
-          {Cover({ file, className: 'DepotDownload-art', children: <span className="DepotDownload-check"><Icon name="fas fa-check" /></span> })}
+          {Cover({
+            file,
+            className: 'DepotDownload-art',
+            children: (
+              <span className="DepotDownload-check">
+                <Icon name="fas fa-check" />
+              </span>
+            ),
+          })}
           <div>
             <h3>{v.external ? t('download.leaving', { host: v.host || file.host || '' }) : t('download.started')}</h3>
-            <p className="Depot-dim">
-              {name ? [<code>{name}</code>, v.size ? ` · ${bytes(v.size)}` : ''] : t('download.link_note')}
-            </p>
+            <p className="Depot-dim">{name ? [<code>{name}</code>, v.size ? ` · ${bytes(v.size)}` : ''] : t('download.link_note')}</p>
             <p className="Depot-dim DepotDownload-retry">
               {t('download.retry')}{' '}
               <a href={v.url} target={v.external ? '_blank' : null} rel="noopener">
@@ -104,7 +110,13 @@ export default class DownloadModal extends Modal {
             <p className="Depot-dim">{t('download.verify_body')}</p>
             <div className="Depot-segmented" role="tablist">
               {Object.keys(OS).map((os) => (
-                <button type="button" role="tab" aria-selected={this.os === os ? 'true' : 'false'} className={this.os === os ? 'is-active' : ''} onclick={() => (this.os = os)}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={this.os === os ? 'true' : 'false'}
+                  className={this.os === os ? 'is-active' : ''}
+                  onclick={() => (this.os = os)}
+                >
                   {t(`download.os_${os}`)}
                 </button>
               ))}
@@ -136,7 +148,11 @@ export default class DownloadModal extends Modal {
               <b>{t('download.watch_title')}</b>
               <span className="Depot-dim">{t('download.watch_body', { count: this.file.watchers })}</span>
             </div>
-            <Button className={`Button ${this.file.watching ? '' : 'Button--primary'}`} icon={this.file.watching ? 'fas fa-bell' : 'far fa-bell'} onclick={() => this.watch()}>
+            <Button
+              className={`Button ${this.file.watching ? '' : 'Button--primary'}`}
+              icon={this.file.watching ? 'fas fa-bell' : 'far fa-bell'}
+              onclick={() => this.watch()}
+            >
               {this.file.watching ? t('download.watching') : t('download.watch')}
             </Button>
           </div>
@@ -165,11 +181,14 @@ export default class DownloadModal extends Modal {
           aria-label={t('download.copy')}
           onclick={() => {
             if (!navigator.clipboard) return;
-            navigator.clipboard.writeText(text).then(() => {
-              this.copied = id;
-              m.redraw();
-              setTimeout(() => ((this.copied = null), m.redraw()), 1800);
-            }, () => {});
+            navigator.clipboard.writeText(text).then(
+              () => {
+                this.copied = id;
+                m.redraw();
+                setTimeout(() => ((this.copied = null), m.redraw()), 1800);
+              },
+              () => {}
+            );
           }}
         />
       </div>

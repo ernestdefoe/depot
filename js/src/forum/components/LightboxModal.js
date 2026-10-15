@@ -43,12 +43,28 @@ export default class LightboxModal extends Modal {
       <div className="Modal-body">
         <div className="DepotLightbox-stage">
           <img src={shots[this.index].full} alt={t('file.screenshot', { n: this.index + 1 })} />
-          <Button className="Button Button--icon DepotLightbox-prev" icon="fas fa-chevron-left" aria-label={t('lightbox.previous')} onclick={() => this.move(-1)} />
-          <Button className="Button Button--icon DepotLightbox-next" icon="fas fa-chevron-right" aria-label={t('lightbox.next')} onclick={() => this.move(1)} />
+          <Button
+            className="Button Button--icon DepotLightbox-prev"
+            icon="fas fa-chevron-left"
+            aria-label={t('lightbox.previous')}
+            onclick={() => this.move(-1)}
+          />
+          <Button
+            className="Button Button--icon DepotLightbox-next"
+            icon="fas fa-chevron-right"
+            aria-label={t('lightbox.next')}
+            onclick={() => this.move(1)}
+          />
         </div>
         <div className="DepotLightbox-strip">
           {shots.map((s, i) => (
-            <button type="button" className={i === this.index ? 'is-active' : ''} style={{ backgroundImage: `url(${s.thumb})` }} aria-label={t('file.screenshot', { n: i + 1 })} onclick={() => (this.index = i)} />
+            <button
+              type="button"
+              className={i === this.index ? 'is-active' : ''}
+              style={{ backgroundImage: `url(${s.thumb})` }}
+              aria-label={t('file.screenshot', { n: i + 1 })}
+              onclick={() => (this.index = i)}
+            />
           ))}
         </div>
       </div>

@@ -48,7 +48,11 @@ export default class FileCard extends Component {
             </span>
             {Sparkline({ values: file.trend, width: 64, height: 20 })}
             <span className="Depot-metric Depot-metric--end">
-              {file.ratings ? [Stars({ value: file.rating }), <b>{file.rating.toFixed(1)}</b>] : <span className="Depot-dim">{t('card.no_ratings')}</span>}
+              {file.ratings ? (
+                [Stars({ value: file.rating }), <b>{file.rating.toFixed(1)}</b>]
+              ) : (
+                <span className="Depot-dim">{t('card.no_ratings')}</span>
+              )}
             </span>
           </div>
         </Link>

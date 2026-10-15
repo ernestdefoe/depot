@@ -80,7 +80,13 @@ export default class FilePage extends Page {
           <div className="DepotFile-main">
             <nav className="DepotTabs" role="tablist">
               {TABS.map((tab) => (
-                <button type="button" role="tab" aria-selected={this.tab === tab ? 'true' : 'false'} className={this.tab === tab ? 'is-active' : ''} onclick={() => (this.tab = tab)}>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={this.tab === tab ? 'true' : 'false'}
+                  className={this.tab === tab ? 'is-active' : ''}
+                  onclick={() => (this.tab = tab)}
+                >
                   {t(`file.tab_${tab}`)}
                   {this.tabCount(file, tab)}
                 </button>
@@ -158,13 +164,24 @@ export default class FilePage extends Page {
 
   controls(file) {
     return (
-      <Dropdown buttonClassName="Button" icon="fas fa-ellipsis-h" label={t('file.controls')} accessibleToggleLabel={t('file.controls')} menuClassName="Dropdown-menu--right">
+      <Dropdown
+        buttonClassName="Button"
+        icon="fas fa-ellipsis-h"
+        label={t('file.controls')}
+        accessibleToggleLabel={t('file.controls')}
+        menuClassName="Dropdown-menu--right"
+      >
         <Button icon="fas fa-plus" onclick={() => app.modal.show(VersionModal, { file, onsave: () => this.load() })}>
           {t('file.new_version')}
         </Button>
         <Button
           icon="fas fa-pen"
-          onclick={() => app.modal.show(EditFileModal, { file, onsave: (slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()) })}
+          onclick={() =>
+            app.modal.show(EditFileModal, {
+              file,
+              onsave: (slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()),
+            })
+          }
         >
           {t('file.edit')}
         </Button>
@@ -340,11 +357,17 @@ export default class FilePage extends Page {
           <li className={`DepotTimeline-item ${i === 0 ? 'is-latest' : ''} ${this.open[i] ? 'is-open' : ''}`}>
             <span className="DepotTimeline-dot" />
             <div className="DepotTimeline-card">
-              <button type="button" className="DepotTimeline-head" aria-expanded={this.open[i] ? 'true' : 'false'} onclick={() => (this.open[i] = !this.open[i])}>
+              <button
+                type="button"
+                className="DepotTimeline-head"
+                aria-expanded={this.open[i] ? 'true' : 'false'}
+                onclick={() => (this.open[i] = !this.open[i])}
+              >
                 <span className="DepotTimeline-version">v{v.version}</span>
                 {i === 0 ? <span className="Depot-pill Depot-pill--fresh">{t('file.latest')}</span> : null}
                 <span className="Depot-dim">
-                  {shortDate(v.date)} · {v.external ? v.host || t('file.external') : bytes(v.size)} · {t('file.version_downloads', { count: number(v.downloads) })}
+                  {shortDate(v.date)} · {v.external ? v.host || t('file.external') : bytes(v.size)} ·{' '}
+                  {t('file.version_downloads', { count: number(v.downloads) })}
                 </span>
                 <Icon name={this.open[i] ? 'fas fa-chevron-up' : 'fas fa-chevron-down'} className="DepotTimeline-caret" />
               </button>
@@ -361,10 +384,19 @@ export default class FilePage extends Page {
                     )}
                     <span className="DepotTimeline-actions">
                       {file.canEdit && file.versions.length > 1 ? (
-                        <Button className="Button Button--icon Button--link" icon="far fa-trash-alt" aria-label={t('file.delete_version')} onclick={() => this.removeVersion(v)} />
+                        <Button
+                          className="Button Button--icon Button--link"
+                          icon="far fa-trash-alt"
+                          aria-label={t('file.delete_version')}
+                          onclick={() => this.removeVersion(v)}
+                        />
                       ) : null}
                       {file.canDownload ? (
-                        <Button className={`Button ${i === 0 ? 'Button--primary' : ''}`} icon="fas fa-download" onclick={() => this.download(file, v)}>
+                        <Button
+                          className={`Button ${i === 0 ? 'Button--primary' : ''}`}
+                          icon="fas fa-download"
+                          onclick={() => this.download(file, v)}
+                        >
                           {t('file.download_version', { version: v.version })}
                         </Button>
                       ) : null}
@@ -438,7 +470,11 @@ export default class FilePage extends Page {
           )}
         </div>
 
-        {shown.length ? shown.map((r) => this.reviewItem(file, r)) : <p className="Depot-dim DepotReviews-none">{file.reviews.length ? t('file.no_reviews_filtered') : t('file.no_reviews')}</p>}
+        {shown.length ? (
+          shown.map((r) => this.reviewItem(file, r))
+        ) : (
+          <p className="Depot-dim DepotReviews-none">{file.reviews.length ? t('file.no_reviews_filtered') : t('file.no_reviews')}</p>
+        )}
       </div>
     );
   }
@@ -471,14 +507,23 @@ export default class FilePage extends Page {
           ) : null}
           <div className="DepotReview-actions">
             {app.session.user && !mine ? (
-              <button type="button" className={`DepotReview-helpful ${r.helpfulByMe ? 'is-active' : ''}`} aria-pressed={r.helpfulByMe ? 'true' : 'false'} onclick={() => this.helpful(r)}>
+              <button
+                type="button"
+                className={`DepotReview-helpful ${r.helpfulByMe ? 'is-active' : ''}`}
+                aria-pressed={r.helpfulByMe ? 'true' : 'false'}
+                onclick={() => this.helpful(r)}
+              >
                 <Icon name={r.helpfulByMe ? 'fas fa-thumbs-up' : 'far fa-thumbs-up'} /> {t('file.helpful', { count: r.helpful })}
               </button>
             ) : r.helpful ? (
               <span className="Depot-dim">{t('file.helpful', { count: r.helpful })}</span>
             ) : null}
             {file.canEdit && !mine && this.replying !== r.id ? (
-              <button type="button" className="Button Button--link Button--small" onclick={() => ((this.replying = r.id), (this.replyText = r.reply || ''))}>
+              <button
+                type="button"
+                className="Button Button--link Button--small"
+                onclick={() => ((this.replying = r.id), (this.replyText = r.reply || ''))}
+              >
                 {r.reply ? t('file.edit_reply') : t('file.reply')}
               </button>
             ) : null}
@@ -612,7 +657,12 @@ export default class FilePage extends Page {
       v ? (
         <div className="DepotSideCard DepotSideCard--download">
           {file.canDownload ? (
-            <SplitDropdown className="DepotDownloadSplit" buttonClassName="Button Button--primary Button--large" icon="fas fa-download" accessibleToggleLabel={t('file.older_versions')}>
+            <SplitDropdown
+              className="DepotDownloadSplit"
+              buttonClassName="Button Button--primary Button--large"
+              icon="fas fa-download"
+              accessibleToggleLabel={t('file.older_versions')}
+            >
               <Button icon="fas fa-download" onclick={() => this.download(file, v)}>
                 {t('file.download', { version: v.version })}
               </Button>
@@ -628,12 +678,20 @@ export default class FilePage extends Page {
             </Button>
           )}
           <div className="DepotSideCard-sub">
-            {[v.external ? v.host : v.filename && v.filename.includes('.') ? v.filename.split('.').pop().toUpperCase() : null, v.size ? bytes(v.size) : null, t('file.released', { time: humanTime(v.date) })]
+            {[
+              v.external ? v.host : v.filename && v.filename.includes('.') ? v.filename.split('.').pop().toUpperCase() : null,
+              v.size ? bytes(v.size) : null,
+              t('file.released', { time: humanTime(v.date) }),
+            ]
               .filter(Boolean)
               .reduce((out, part, i) => (i ? [...out, ' · ', part] : [part]), [])}
           </div>
           {app.session.user ? (
-            <Button className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`} icon={file.watching ? 'fas fa-bell' : 'far fa-bell'} onclick={() => this.watch(file)}>
+            <Button
+              className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`}
+              icon={file.watching ? 'fas fa-bell' : 'far fa-bell'}
+              onclick={() => this.watch(file)}
+            >
               {file.watching ? t('file.watching') : t('file.watch')}
             </Button>
           ) : null}
@@ -679,7 +737,12 @@ export default class FilePage extends Page {
           <h4 className="DepotSideCard-label">SHA-256</h4>
           <div className="Depot-copy Depot-copy--small">
             <code>{v.sha256}</code>
-            <Button className="Button Button--icon" icon={this.copied ? 'fas fa-check' : 'far fa-copy'} aria-label={t('download.copy')} onclick={() => this.copy(v.sha256)} />
+            <Button
+              className="Button Button--icon"
+              icon={this.copied ? 'fas fa-check' : 'far fa-copy'}
+              aria-label={t('download.copy')}
+              onclick={() => this.copy(v.sha256)}
+            />
           </div>
         </div>
       ) : null,
@@ -701,7 +764,9 @@ export default class FilePage extends Page {
           {Avatar({ user: u, className: 'Avatar--large' })}
           <div>
             <b>{u.displayName}</b>
-            {file.author ? <span className="Depot-dim">{t('file.author_stats', { files: file.author.files, downloads: compact(file.author.downloads) })}</span> : null}
+            {file.author ? (
+              <span className="Depot-dim">{t('file.author_stats', { files: file.author.files, downloads: compact(file.author.downloads) })}</span>
+            ) : null}
           </div>
           <a className="Button Button--small" href={app.route('user', { username: u.slug })}>
             {t('file.view_profile')}

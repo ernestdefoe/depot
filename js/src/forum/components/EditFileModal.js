@@ -55,7 +55,12 @@ export default class EditFileModal extends FormModal {
         {this.input('title', t('upload.name_label'), { maxlength: 120 })}
         <div className="Form-group">
           <label for="depot-edit-category">{t('upload.category_label')}</label>
-          <select id="depot-edit-category" className="FormControl" value={this.values.category} onchange={(e) => (this.values.category = e.target.value)}>
+          <select
+            id="depot-edit-category"
+            className="FormControl"
+            value={this.values.category}
+            onchange={(e) => (this.values.category = e.target.value)}
+          >
             {leaves.map((c) => (
               <option value={c.slug}>{c.parent ? `${rootOf(c).name} › ${c.name}` : c.name}</option>
             ))}
