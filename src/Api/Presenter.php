@@ -115,6 +115,9 @@ class Presenter
             'compat' => $f->compat ?: [],
             'source' => $f->source,
             'repo' => $f->repo,
+            // A Composer package is installed, not downloaded: the page shows
+            // the install command and its count is Packagist's.
+            'package' => $f->package,
             'host' => $v && $v->url ? parse_url($v->url, PHP_URL_HOST) : null,
             'cover' => $cover ? $this->shot($cover) : null,
             'trend' => $trend ?? array_fill(0, self::TREND_DAYS, 0),
@@ -187,7 +190,7 @@ class Presenter
             'install' => $f->install ?: [],
             'watchers' => $f->watcher_count,
             'watching' => $actor->exists && $f->watchers()->where('users.id', $actor->id)->exists(),
-            'versions' => $f->versions->map(fn (Version $v) => $this->version($v))->values(),
+            'versions' => $f->versions->map(fn (Version $v) => $this->version($v, $f->repo))->values(),
             'screenshots' => $f->screenshots->map(fn (Screenshot $s) => $this->shot($s))->values(),
             'reviews' => $reviews->map(fn (Review $r) => $this->review($r, in_array($r->id, $helpful, true)))->values(),
             'myReview' => $mine ? $this->review($mine, false) : null,
@@ -202,7 +205,7 @@ class Presenter
         ];
     }
 
-    public function version(Version $v): array
+    public function version(Version $v, ?string $repo = null): array
     {
         return [
             'id' => $v->id,
@@ -216,6 +219,7 @@ class Presenter
             'host' => $v->url ? parse_url($v->url, PHP_URL_HOST) : null,
             'changelog' => array_merge(['added' => [], 'changed' => [], 'fixed' => []], $v->changelog ?: []),
             'url' => $this->url->to('forum')->route('depot.download', ['id' => $v->id]),
+            'releaseUrl' => $v->release_url ?: ($v->github_release_id && $repo ? "https://github.com/$repo/releases" : null),
         ];
     }
 

@@ -28,7 +28,8 @@ class Counters
         $file->rating_count = (int) $ratings->n;
         $file->rating_sum = (int) $ratings->total;
         $file->watcher_count = $this->db->table('depot_watchers')->where('file_id', $file->id)->count();
-        $file->download_count = (int) $this->db->table('depot_versions')->where('file_id', $file->id)->sum('download_count');
+        // Downloads Depot served, plus a Composer package's installs on Packagist.
+        $file->download_count = (int) $this->db->table('depot_versions')->where('file_id', $file->id)->sum('download_count') + (int) $file->external_downloads;
         $file->save();
     }
 

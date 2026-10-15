@@ -25,6 +25,7 @@ class GitHub
         private SettingsRepositoryInterface $settings,
         private Counters $counters,
         private LoggerInterface $log,
+        private Packagist $packagist,
     ) {
     }
 
@@ -84,6 +85,7 @@ class GitHub
                 'version' => $version,
                 'changelog' => Changelog::parse((string) ($release['body'] ?? '')),
                 'url' => $asset['browser_download_url'] ?? ($release['zipball_url'] ?? $release['html_url']),
+                'release_url' => $release['html_url'] ?? null,
                 'filename' => $asset['name'] ?? null,
                 'size' => (int) ($asset['size'] ?? 0),
                 'sha256' => is_string($digest) && str_starts_with($digest, 'sha256:') ? substr($digest, 7) : null,
@@ -94,6 +96,14 @@ class GitHub
 
         if ($added) {
             $this->counters->file($file);
+        }
+
+        // A repository that publishes a Composer package is installed with
+        // Composer: find the package once, then its numbers come from Packagist.
+        if (! $file->package && ($package = $this->packagist->detect($file->repo))) {
+            $file->package = $package;
+            $file->saveQuietly();
+            $this->packagist->refresh($file);
         }
 
         return $added;

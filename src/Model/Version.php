@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array|null $changelog
  * @property string|null $path
  * @property string|null $url
+ * @property string|null $release_url
  * @property string|null $filename
  * @property string|null $mime
  * @property int $size

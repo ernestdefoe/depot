@@ -366,8 +366,8 @@ export default class FilePage extends Page {
                 <span className="DepotTimeline-version">v{v.version}</span>
                 {i === 0 ? <span className="Depot-pill Depot-pill--fresh">{t('file.latest')}</span> : null}
                 <span className="Depot-dim">
-                  {shortDate(v.date)} · {v.external ? v.host || t('file.external') : bytes(v.size)} ·{' '}
-                  {t('file.version_downloads', { count: number(v.downloads) })}
+                  {shortDate(v.date)} · {file.source === 'github' ? 'GitHub' : v.external ? v.host || t('file.external') : bytes(v.size)} ·{' '}
+                  {file.package ? null : t('file.version_downloads', { count: number(v.downloads) })}
                 </span>
                 <Icon name={this.open[i] ? 'fas fa-chevron-up' : 'fas fa-chevron-down'} className="DepotTimeline-caret" />
               </button>
@@ -391,7 +391,13 @@ export default class FilePage extends Page {
                           onclick={() => this.removeVersion(v)}
                         />
                       ) : null}
-                      {file.canDownload ? (
+                      {file.source === 'github' ? (
+                        v.releaseUrl ? (
+                          <a className={`Button ${i === 0 ? 'Button--primary' : ''}`} href={v.releaseUrl} target="_blank" rel="noopener noreferrer">
+                            <Icon name="fab fa-github" /> {t('file.release_notes')}
+                          </a>
+                        ) : null
+                      ) : file.canDownload ? (
                         <Button
                           className={`Button ${i === 0 ? 'Button--primary' : ''}`}
                           icon="fas fa-download"
@@ -654,69 +660,13 @@ export default class FilePage extends Page {
     const u = file.user;
 
     return [
-      v ? (
-        <div className="DepotSideCard DepotSideCard--download">
-          {file.canDownload ? (
-            <SplitDropdown
-              className="DepotDownloadSplit"
-              buttonClassName="Button Button--primary Button--large"
-              icon="fas fa-download"
-              accessibleToggleLabel={t('file.older_versions')}
-            >
-              <Button icon="fas fa-download" onclick={() => this.download(file, v)}>
-                {t('file.download', { version: v.version })}
-              </Button>
-              {file.versions.slice(1, 8).map((old) => (
-                <Button icon="fas fa-history" onclick={() => this.download(file, old)}>
-                  {t('file.download_old', { version: old.version, time: humanTime(old.date) })}
-                </Button>
-              ))}
-            </SplitDropdown>
-          ) : (
-            <Button className="Button Button--large" disabled>
-              {app.session.user ? t('file.no_download_permission') : t('file.login_to_download')}
-            </Button>
-          )}
-          <div className="DepotSideCard-sub">
-            {[
-              v.external ? v.host : v.filename && v.filename.includes('.') ? v.filename.split('.').pop().toUpperCase() : null,
-              v.size ? bytes(v.size) : null,
-              t('file.released', { time: humanTime(v.date) }),
-            ]
-              .filter(Boolean)
-              .reduce((out, part, i) => (i ? [...out, ' · ', part] : [part]), [])}
-          </div>
-          {app.session.user ? (
-            <Button
-              className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`}
-              icon={file.watching ? 'fas fa-bell' : 'far fa-bell'}
-              onclick={() => this.watch(file)}
-            >
-              {file.watching ? t('file.watching') : t('file.watch')}
-            </Button>
-          ) : null}
-          <div className="DepotSideCard-trust">
-            {v.sha256 ? (
-              <Tooltip text={t('file.verified_tooltip')}>
-                <span>
-                  <Icon name="fas fa-shield-alt" /> {t('file.verified')}
-                </span>
-              </Tooltip>
-            ) : (
-              <span />
-            )}
-            <span>
-              <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers) })}
-            </span>
-          </div>
-        </div>
-      ) : null,
+      file.source === 'github' ? this.installCard(file) : v ? this.downloadCard(file, v) : null,
 
       <div className="DepotSideCard">
         <div className="DepotSideCard-row">
           <div>
             <b className="DepotSideCard-big">{number(file.downloads)}</b>
-            <span className="Depot-dim">{t('file.total_downloads')}</span>
+            <span className="Depot-dim">{file.package ? t('file.total_installs') : t('file.total_downloads')}</span>
           </div>
           <div className="DepotSideCard-trend">
             {Sparkline({ values: file.trend, width: 120, height: 36 })}
@@ -724,7 +674,7 @@ export default class FilePage extends Page {
           </div>
         </div>
         <dl className="DepotStats">
-          {v ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
+          {v && !file.package ? [<dt>{t('file.this_version')}</dt>, <dd>{number(v.downloads)}</dd>] : null}
           <dt>{t('file.first_released')}</dt>
           <dd>{shortDate(file.created)}</dd>
           <dt>{t('file.versions')}</dt>
@@ -739,7 +689,7 @@ export default class FilePage extends Page {
             <code>{v.sha256}</code>
             <Button
               className="Button Button--icon"
-              icon={this.copied ? 'fas fa-check' : 'far fa-copy'}
+              icon={this.copied === true ? 'fas fa-check' : 'far fa-copy'}
               aria-label={t('download.copy')}
               onclick={() => this.copy(v.sha256)}
             />
@@ -784,6 +734,123 @@ export default class FilePage extends Page {
     ];
   }
 
+  /** An uploaded or linked file: the download button, its older versions, and Watch. */
+  downloadCard(file, v) {
+    return (
+      <div className="DepotSideCard DepotSideCard--download">
+        {file.canDownload ? (
+          <SplitDropdown
+            className="DepotDownloadSplit"
+            buttonClassName="Button Button--primary Button--large"
+            icon="fas fa-download"
+            accessibleToggleLabel={t('file.older_versions')}
+          >
+            <Button icon="fas fa-download" onclick={() => this.download(file, v)}>
+              {t('file.download', { version: v.version })}
+            </Button>
+            {file.versions.slice(1, 8).map((old) => (
+              <Button icon="fas fa-history" onclick={() => this.download(file, old)}>
+                {t('file.download_old', { version: old.version, time: humanTime(old.date) })}
+              </Button>
+            ))}
+          </SplitDropdown>
+        ) : (
+          <Button className="Button Button--large" disabled>
+            {app.session.user ? t('file.no_download_permission') : t('file.login_to_download')}
+          </Button>
+        )}
+        <div className="DepotSideCard-sub">
+          {[
+            v.external ? v.host : v.filename && v.filename.includes('.') ? v.filename.split('.').pop().toUpperCase() : null,
+            v.size ? bytes(v.size) : null,
+            t('file.released', { time: humanTime(v.date) }),
+          ]
+            .filter(Boolean)
+            .reduce((out, part, i) => (i ? [...out, ' · ', part] : [part]), [])}
+        </div>
+        {app.session.user ? (
+          <Button
+            className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`}
+            icon={file.watching ? 'fas fa-bell' : 'far fa-bell'}
+            onclick={() => this.watch(file)}
+          >
+            {file.watching ? t('file.watching') : t('file.watch')}
+          </Button>
+        ) : null}
+        <div className="DepotSideCard-trust">
+          {v.sha256 ? (
+            <Tooltip text={t('file.verified_tooltip')}>
+              <span>
+                <Icon name="fas fa-shield-alt" /> {t('file.verified')}
+              </span>
+            </Tooltip>
+          ) : (
+            <span />
+          )}
+          <span>
+            <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers) })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * A GitHub-linked file is not downloaded from the forum. A Composer package
+   * shows the install command (its count is Packagist's installs); anything
+   * else links to its releases on GitHub.
+   */
+  installCard(file) {
+    const command = file.package ? `composer require ${file.package}` : null;
+    return (
+      <div className="DepotSideCard DepotSideCard--download DepotSideCard--install">
+        {command
+          ? [
+              <h4 className="DepotSideCard-label">{t('file.install_with_composer')}</h4>,
+              <div className="Depot-copy">
+                <code>{command}</code>
+                <Button
+                  className="Button Button--icon"
+                  icon={this.copied === 'install' ? 'fas fa-check' : 'far fa-copy'}
+                  aria-label={t('download.copy')}
+                  onclick={() => this.copy(command, 'install')}
+                />
+              </div>,
+            ]
+          : null}
+        <a
+          className={`Button Button--large ${command ? '' : 'Button--primary'} DepotGitHubButton`}
+          href={`https://github.com/${file.repo}`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="fab fa-github" /> {t('file.view_on_github')}
+        </a>
+        {app.session.user ? (
+          <Button
+            className={`Button DepotWatch ${file.watching ? 'is-active' : ''}`}
+            icon={file.watching ? 'fas fa-bell' : 'far fa-bell'}
+            onclick={() => this.watch(file)}
+          >
+            {file.watching ? t('file.watching') : t('file.watch')}
+          </Button>
+        ) : null}
+        <div className="DepotSideCard-trust">
+          {file.package ? (
+            <span>
+              <Icon name="fas fa-box" /> {t('file.counted_by_packagist')}
+            </span>
+          ) : (
+            <span />
+          )}
+          <span>
+            <Icon name="far fa-eye" /> {t('file.watchers', { count: number(file.watchers) })}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   watch(file) {
     api.post(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
       file.watching = r.watching;
@@ -792,11 +859,11 @@ export default class FilePage extends Page {
     });
   }
 
-  copy(text) {
+  copy(text, id = true) {
     if (!navigator.clipboard) return;
     navigator.clipboard.writeText(text).then(
       () => {
-        this.copied = true;
+        this.copied = id;
         m.redraw();
         setTimeout(() => ((this.copied = false), m.redraw()), 1800);
       },

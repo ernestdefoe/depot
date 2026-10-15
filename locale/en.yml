@@ -20,7 +20,9 @@ ernestdefoe-depot:
       featured: Featured
       download: "Download v{version}"
       details: See details
+      install: How to install
       downloads: downloads
+      installs: installs
 
     hero:
       count: "{count, plural, one {# file} other {# files}}"
@@ -147,6 +149,11 @@ ernestdefoe-depot:
       verified_tooltip: Compare this SHA-256 with your download to be sure it's the file the author published
       watchers: "{count} watching"
       total_downloads: downloads
+      total_installs: installs
+      install_with_composer: Install with Composer
+      view_on_github: View on GitHub
+      counted_by_packagist: Installs counted by Packagist
+      release_notes: Release notes
       last_30: "{count} in 30 days"
       this_version: This version
       first_released: First released
@@ -235,7 +242,7 @@ ernestdefoe-depot:
       link_help: Depot counts the clicks and sends people to this address.
       repo_label: Repository
       repo_placeholder: owner/repository
-      repo_help: Each new GitHub release becomes a version here, with its release notes as the changelog.
+      repo_help: Each new GitHub release becomes a version here, with its release notes as the changelog. If the repository is a Composer package on Packagist, the page shows how to install it and counts its installs.
       name_label: Name
       category_label: Category
       version_label: Version

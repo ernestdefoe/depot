@@ -86,19 +86,36 @@ export default class Spotlight extends Component {
                   {v.size ? <span>{bytes(v.size)}</span> : null}
                 </div>
                 <div className="DepotSpotlight-actions">
-                  <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
-                    {t('spotlight.download', { version: v.version })}
-                  </Button>
-                  <a className="Button Button--large DepotSpotlight-ghost" href={app.route('depot.file', { slug: file.slug })}>
-                    {t('spotlight.details')}
-                  </a>
+                  {file.source === 'github'
+                    ? [
+                        <a className="Button Button--primary Button--large" href={app.route('depot.file', { slug: file.slug })}>
+                          <Icon name={file.package ? 'fas fa-terminal' : 'fas fa-arrow-right'} />{' '}
+                          {file.package ? t('spotlight.install') : t('spotlight.details')}
+                        </a>,
+                        <a
+                          className="Button Button--large DepotSpotlight-ghost"
+                          href={`https://github.com/${file.repo}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Icon name="fab fa-github" /> GitHub
+                        </a>,
+                      ]
+                    : [
+                        <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
+                          {t('spotlight.download', { version: v.version })}
+                        </Button>,
+                        <a className="Button Button--large DepotSpotlight-ghost" href={app.route('depot.file', { slug: file.slug })}>
+                          {t('spotlight.details')}
+                        </a>,
+                      ]}
                 </div>
               </div>
 
               <div className="DepotSpotlight-side">
                 <div className="DepotSpotlight-stat">
                   <b>{compact(file.downloads)}</b>
-                  <span>{t('spotlight.downloads')}</span>
+                  <span>{file.package ? t('spotlight.installs') : t('spotlight.downloads')}</span>
                 </div>
                 {file.ratings ? (
                   <div className="DepotSpotlight-stat">

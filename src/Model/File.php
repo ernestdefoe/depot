@@ -20,6 +20,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $description
  * @property string $source
  * @property string|null $repo
+ * @property string|null $package
+ * @property int $external_downloads
+ * @property \Carbon\Carbon|null $stats_synced_at
  * @property string|null $game
  * @property array|null $compat
  * @property string|null $licence
@@ -69,6 +72,7 @@ class File extends AbstractModel
         'approved_at' => 'datetime',
         'released_at' => 'datetime',
         'synced_at' => 'datetime',
+        'stats_synced_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

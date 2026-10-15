@@ -4,6 +4,8 @@ namespace ErnestDefoe\Depot\Tests\integration\api;
 
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Service\Changelog;
+use ErnestDefoe\Depot\Service\Counters;
+use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Service\GitHub;
 use ErnestDefoe\Depot\Storage\Store;
 use Flarum\Foundation\ValidationException;
@@ -222,6 +224,22 @@ class DepotTest extends TestCase
         // The tag's own count moved, so Flarum's events ran.
         $this->assertSame(1, (int) $this->database()->table('tags')->where('id', 1)->value('discussion_count'));
         $this->assertSame(1, (int) $this->database()->table('discussions')->where('id', $discussion)->value('comment_count'));
+    }
+
+    #[Test]
+    public function a_composer_package_counts_its_packagist_installs(): void
+    {
+        $this->database()->table('depot_files')->where('id', 1)->update(['source' => 'github', 'repo' => 'example/map', 'package' => 'example/map', 'external_downloads' => 500]);
+        $this->database()->table('depot_versions')->where('id', 1)->update(['download_count' => 3, 'release_url' => 'https://github.com/example/map/releases/tag/1.0']);
+
+        $this->app();
+        $this->app()->getContainer()->make(Counters::class)->file(File::query()->find(1));
+
+        $card = $this->browse()['files'][0];
+        $this->assertSame(['example/map', 503], [$card['package'], $card['downloads']]);
+
+        $file = $this->json($this->send($this->request('GET', '/api/depot/file')->withQueryParams(['slug' => 'public-map'])));
+        $this->assertSame('https://github.com/example/map/releases/tag/1.0', $file['versions'][0]['releaseUrl']);
     }
 
     #[Test]
