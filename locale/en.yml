@@ -1,0 +1,212 @@
+ernestdefoe-depot:
+
+  forum:
+    title: Downloads
+    rating_label: "Rated {rating} out of 5"
+
+    nav:
+      link: Downloads
+      all: All files
+      watching: Watching
+      mine: My files
+      upload: Upload a file
+      toggle: Choose a category
+      subcategories: Subcategories
+      everything_in: "All of {name}"
+
+    spotlight:
+      label: Featured files
+      featured: Featured
+      download: "Download v{version}"
+      details: See details
+      downloads: downloads
+
+    hero:
+      count: "{count, plural, one {# file} other {# files}}"
+
+    tiles:
+      count: "{count, plural, one {# file} other {# files}} · {downloads} downloads"
+      locked: "For {group}"
+
+    notice:
+      pending: "{count, plural, one {# file is} other {# files are}} waiting for your approval"
+      review: Review
+
+    toolbar:
+      sort: Sort files
+      sort_updated: Recently updated
+      sort_downloads: Most downloaded
+      sort_rating: Top rated
+      sort_newest: Newest
+      compat: Filter by version
+      search: Search files
+      view: Layout
+      view_grid: Show as cards
+      view_list: Show as a list
+      showing: "{count, plural, one {# file} other {# files}}"
+      clear_filter: "Works with {version}"
+
+    empty:
+      title: Nothing matches
+      body: Try another version, or a shorter search.
+      reset: Clear filters
+
+    card:
+      updated_badge: Updated
+      updated: "updated {time}"
+      last_30_days: 30 days
+      locked: "{count, plural, one {# file} other {# files}} for {group}"
+      get_access: Get access
+
+    source:
+      github_tooltip: "New releases on github.com/{repo} appear here automatically"
+      link_tooltip: "Hosted on {host}. Depot counts the clicks."
+
+    file:
+      tab_overview: Overview
+      tab_versions: Versions
+      tab_reviews: Reviews
+      tab_discussion: Discussion
+      updated: "updated {time}"
+      missing_title: This file isn't here any more
+      missing_back: Back to Downloads
+      screenshot: "Screenshot {n}"
+      at_a_glance: At a glance
+      works_with: Works with
+      licence: Licence
+      requires: You'll also need
+      optional: Optional
+      required: Required
+      install: Installing
+      whats_new: "What's new in v{version}"
+      all_versions: All versions
+      more_like_this: More like this
+      change_added: Added
+      change_changed: Changed
+      change_fixed: Fixed
+      latest: Latest
+      external: external link
+      version_downloads: "{count} downloads"
+      download_version: "Download v{version}"
+      ratings: "{count} ratings"
+      write_review: Write a review
+      reviewed_version: "reviewed v{version}"
+      author: Author
+      helpful: "Helpful ({count})"
+      no_reviews: No reviews with that rating yet.
+      thread_title: "{title}: support and comments"
+      thread_meta: "{count, plural, one {# reply} other {# replies}}"
+      thread_open: Open in the forum
+      reply_placeholder: Write a reply…
+      older_versions: Older versions
+      download: "Download v{version}"
+      download_old: "v{version} · {time}"
+      released: "released {time}"
+      watch: Watch for updates
+      watching: Watching
+      verified: Checksum published
+      verified_tooltip: Compare this SHA-256 with your download to be sure it's the file the author published
+      watchers: "{count} watching"
+      total_downloads: downloads
+      last_30: "{count} in 30 days"
+      this_version: This version
+      first_released: First released
+      versions: Versions
+      github_sync: "Synced from GitHub {time}"
+      author_stats: "{files} files · {downloads} downloads"
+      more_by: More by them
+      api: Update-check API
+      api_help: Mods and launchers can ask for the latest version without loading the page.
+
+    download:
+      started: Your download has started
+      leaving: "Taking you to {host}"
+      link_note: This file is hosted somewhere else. It opens in a new tab.
+      retry: Nothing happening? Click the button again.
+      verify_title: Check it's the real file
+      verify_body: Run this in a terminal. The result should match the checksum the author published.
+      os_mac: macOS
+      os_windows: Windows
+      os_linux: Linux
+      expect: "Expected result:"
+      install_title: Installing
+      watch_title: Get the next version
+      watch_body: "{count} people get a notification when this file is updated."
+      watch: Watch
+      watching: Watching
+      copy: Copy
+
+    lightbox:
+      previous: Previous screenshot
+      next: Next screenshot
+
+    upload:
+      title: Upload a file
+      step_source: File
+      step_details: Details
+      step_media: Screenshots
+      step_support: Support
+      step_review: Review
+      back: Back
+      next: Continue
+      submit: Submit for approval
+      source_upload: Upload
+      source_upload_help: From your computer
+      source_link: Link
+      source_link_help: Hosted elsewhere
+      source_github: GitHub
+      source_github_help: Sync releases
+      drop: Drop the file here, or click to choose one
+      drop_help: Up to 250 MB. Its SHA-256 checksum is worked out as soon as it arrives.
+      hashing: Working out the checksum…
+      replace: Replace
+      link_label: Download link
+      link_help: Depot counts the clicks and sends people to this address.
+      repo_label: Repository
+      repo_help: Each new GitHub release becomes a version here, with its release notes as the changelog.
+      name_label: Name
+      category_label: Category
+      version_label: Version
+      compat_label: Works with
+      tagline_label: One-line summary
+      tagline_placeholder: What it is, in a sentence
+      tagline_help: "Shown on cards and in search. {left} characters left."
+      cover: Cover
+      remove: Remove
+      add_shots: Add screenshots
+      shots_help: The first one is the cover. Drag in up to 8.
+      thread_toggle: Start a support discussion
+      thread_toggle_help: People ask questions and report problems there, and every reply notifies you.
+      thread_tag: Post it in
+      thread_no_tags: This forum has no tags, so the discussion goes in the main list.
+      thread_opening: Opening post
+      thread_opening_placeholder: Anything people should know before asking, like known issues.
+      thread_opening_help: A link to the file and its install steps are added for you.
+      thread_preview: How it will look in the discussion list
+      thread_title: "{title}: support and comments"
+      thread_linked: Linked to the file
+      thread_off: Comments will be turned off for this file. You can start a discussion later from its page.
+      review_thread: "A support discussion will be started in {tag} when the file is approved."
+      no_tagline: No summary yet
+      approval: "Files in {category} are checked by a moderator before they appear. You'll get a notification when it's approved."
+      submitted: "\"{title}\" was sent for approval."
+
+  admin:
+    permissions:
+      view: View Downloads
+      download: Download files
+      upload: Upload files
+      skipApproval: Upload without approval
+      review: Rate and review files
+      moderate: Approve, edit and delete files
+    settings:
+      count_window: Count a download once per
+      count_window_help: Repeat downloads by the same member or address inside this window are not counted.
+      window_1: 1 hour
+      window_24: 24 hours
+      window_168: 7 days
+      max_upload: Largest upload (MB)
+      support_thread: Start a support discussion for new files
+      support_thread_help: Uploaders choose the tag. They can turn it off for their own file.
+      github_sync: Allow GitHub release sync
+      github_sync_help: Checks each linked repository for new releases every hour.

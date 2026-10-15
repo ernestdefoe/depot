@@ -1,0 +1,20 @@
+{
+    "name": "ernestdefoe/depot",
+    "description": "Depot — a downloads section for Flarum 2: files with versions and changelogs, checksums, ratings and reviews, and category permissions.",
+    "keywords": ["flarum", "downloads", "files", "resources", "mods"],
+    "type": "flarum-extension",
+    "license": "proprietary",
+    "authors": [{ "name": "Ernest Defoe", "homepage": "https://ernestdefoe.online" }],
+    "require": {
+        "php": "^8.3",
+        "flarum/core": "^2.0"
+    },
+    "autoload": { "psr-4": { "ErnestDefoe\\Depot\\": "src/" } },
+    "extra": {
+        "flarum-extension": {
+            "title": "Depot",
+            "category": "feature",
+            "icon": { "name": "fas fa-box-open", "backgroundColor": "#3b5bdb", "color": "#fff" }
+        }
+    }
+}
