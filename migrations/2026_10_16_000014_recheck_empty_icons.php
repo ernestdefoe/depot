@@ -10,7 +10,15 @@ use Illuminate\Database\Schema\Builder;
  */
 return [
     'up' => function (Builder $schema) {
-        $schema->getConnection()->table('depot_files')->where('icon', '[]')->update(['icon' => null]);
+        // Compared in PHP: PostgreSQL has no = for a json column.
+        $table = $schema->getConnection()->table('depot_files');
+        $ids = $table->clone()->whereNotNull('icon')->pluck('icon', 'id')
+            ->filter(fn ($icon) => json_decode((string) $icon, true) === [])
+            ->keys();
+
+        if ($ids->isNotEmpty()) {
+            $table->clone()->whereIn('id', $ids)->update(['icon' => null]);
+        }
     },
     'down' => function (Builder $schema) {
         // Nothing to undo: the next sync writes the answer again.
