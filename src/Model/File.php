@@ -231,7 +231,8 @@ class File extends AbstractModel
     public static function cleanIcon(mixed $icon): array
     {
         $name = is_array($icon) ? trim((string) ($icon['name'] ?? '')) : '';
-        if (! preg_match('/^(fa[srlbd]?|fa-(solid|regular|brands|light|duotone)) fa-[a-z0-9-]+$/', $name)) {
+        // A style, the glyph, then any modifiers (fa-flip-vertical, fa-rotate-90).
+        if (! preg_match('/^(fa[srlbd]?|fa-(solid|regular|brands|light|duotone))( fa-[a-z0-9-]+)+$/', $name)) {
             return [];
         }
         $colour = fn ($c) => is_string($c) && preg_match('/^(#[0-9a-f]{3,8}|[a-z]{3,20})$/i', trim($c)) ? trim($c) : null;

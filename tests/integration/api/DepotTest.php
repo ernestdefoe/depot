@@ -273,4 +273,18 @@ class DepotTest extends TestCase
         $parsed = Changelog::parse("## Added\n- A thing (#12)\n## Bug fixes\n* A fix\nNot a bullet\n- Loose");
         $this->assertSame(['added' => ['A thing'], 'changed' => [], 'fixed' => ['A fix', 'Loose']], $parsed);
     }
+
+    #[Test]
+    public function an_extension_icon_keeps_its_modifiers_and_nothing_else(): void
+    {
+        $this->assertSame(
+            ['name' => 'fas fa-code-branch fa-flip-vertical', 'color' => '#fff', 'backgroundColor' => '#0e7490'],
+            File::cleanIcon(['name' => 'fas fa-code-branch fa-flip-vertical', 'color' => '#fff', 'backgroundColor' => '#0e7490'])
+        );
+        $this->assertSame('fas fa-ghost', File::cleanIcon(['name' => 'fas fa-ghost'])['name']);
+        $this->assertSame([], File::cleanIcon(['name' => 'fas fa-ghost" onclick="x']));
+        $this->assertSame([], File::cleanIcon(['name' => 'fas']));
+        $this->assertSame([], File::cleanIcon(['name' => 'evil fa-ghost']));
+        $this->assertNull(File::cleanIcon(['name' => 'fas fa-ghost', 'color' => 'red;background:url(x)'])['color']);
+    }
 }

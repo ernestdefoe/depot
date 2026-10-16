@@ -108,7 +108,29 @@ class GitHub
             $this->packagist->adopt($file, $package);
         }
 
+        // Not on Packagist (installed from the repository itself): the icon
+        // comes from the repository's own composer.json instead, read once.
+        if (! $file->package && $file->getRawOriginal('icon') === null) {
+            $this->iconFromRepo($file);
+        }
+
         return $added;
+    }
+
+    /** The extension icon from the repository's composer.json, for a file Packagist doesn't know. */
+    private function iconFromRepo(File $file): void
+    {
+        try {
+            $raw = (string) $this->client()->get("repos/{$file->repo}/contents/composer.json", [
+                'headers' => ['Accept' => 'application/vnd.github.raw'],
+            ])->getBody();
+            $composer = json_decode($raw, true);
+        } catch (\Throwable $e) {
+            return; // asked again on the next sync
+        }
+
+        $file->icon = File::cleanIcon(is_array($composer) ? ($composer['extra']['flarum-extension']['icon'] ?? null) : null);
+        $file->saveQuietly();
     }
 
     private function client(): Client
