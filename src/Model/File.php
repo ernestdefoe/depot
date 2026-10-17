@@ -171,6 +171,12 @@ class File extends AbstractModel
         return $this->isOwnedBy($actor) || $actor->hasPermission('depot.moderate');
     }
 
+    /** Its support discussion can be set by its owner, or a moderator (products included). */
+    public function canLinkDiscussion(User $actor): bool
+    {
+        return (! $this->isProduct() && $this->isOwnedBy($actor)) || $actor->hasPermission('depot.moderate');
+    }
+
     public function isProduct(): bool
     {
         return $this->source === 'product';

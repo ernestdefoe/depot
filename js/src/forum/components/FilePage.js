@@ -16,6 +16,7 @@ import LightboxModal from './LightboxModal';
 import ReviewModal from './ReviewModal';
 import VersionModal from './VersionModal';
 import EditFileModal from './EditFileModal';
+import LinkDiscussionModal from './LinkDiscussionModal';
 
 const shortDate = (d) => dayjs(d).format('ll');
 const TABS = ['overview', 'versions', 'reviews', 'discussion'];
@@ -160,7 +161,7 @@ export default class FilePage extends Page {
               ) : null}
             </div>
           </div>
-          {file.canEdit || file.canModerate ? <div className="DepotFileHero-controls">{this.controls(file)}</div> : null}
+          {file.canEdit || file.canModerate || file.canLinkDiscussion ? <div className="DepotFileHero-controls">{this.controls(file)}</div> : null}
         </div>
       </header>
     );
@@ -181,6 +182,11 @@ export default class FilePage extends Page {
             onclick={() => edit((slug) => (slug !== file.slug ? m.route.set(app.route('depot.file', { slug })) : this.load()))}
           >
             {t('file.edit')}
+          </Button>
+        ) : null}
+        {file.canLinkDiscussion ? (
+          <Button icon="far fa-comments" onclick={() => app.modal.show(LinkDiscussionModal, { file, onsave: () => this.load() })}>
+            {file.discussion ? t('file.change_discussion') : t('file.link_discussion')}
           </Button>
         ) : null}
         {file.canModerate ? (

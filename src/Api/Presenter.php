@@ -205,6 +205,7 @@ class Presenter
             'author' => $author ? ['files' => (int) $author->files, 'downloads' => (int) $author->downloads] : null,
             'access' => $f->isProduct() ? $this->access($f, $actor) : null,
             'canEdit' => $f->canEdit($actor),
+            'canLinkDiscussion' => $f->canLinkDiscussion($actor),
             'canModerate' => $actor->hasPermission('depot.moderate'),
             'canReview' => $actor->exists && ! $f->isOwnedBy($actor) && $actor->hasPermission('depot.review'),
             'canDownload' => $actor->hasPermission('depot.download'),
@@ -268,6 +269,11 @@ class Presenter
             'width' => $s->width,
             'height' => $s->height,
         ];
+    }
+
+    public function discussionFor(File $f, User $actor): ?array
+    {
+        return $this->discussion($f, $actor);
     }
 
     /** The support discussion, only for people allowed to see it (a restricted tag, a hidden discussion). */

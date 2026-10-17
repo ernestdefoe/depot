@@ -80,6 +80,7 @@ return [
         ->delete('/depot/versions/{id:[0-9]+}', 'depot.versions.delete', Controller\DeleteVersionController::class)
         ->post('/depot/files/{id:[0-9]+}/approve', 'depot.files.approve', Controller\ApproveFileController::class)
         ->post('/depot/files/{id:[0-9]+}/feature', 'depot.files.feature', Controller\FeatureFileController::class)
+        ->post('/depot/files/{id:[0-9]+}/discussion', 'depot.files.discussion', Controller\LinkDiscussionController::class)
         ->post('/depot/files/{id:[0-9]+}/watch', 'depot.files.watch', Controller\WatchFileController::class)
         ->post('/depot/files/{id:[0-9]+}/review', 'depot.reviews.save', Controller\SaveReviewController::class)
         ->delete('/depot/reviews/{id:[0-9]+}', 'depot.reviews.delete', Controller\DeleteReviewController::class)

@@ -227,6 +227,36 @@ class DepotTest extends TestCase
     }
 
     #[Test]
+    public function an_existing_discussion_can_be_linked_by_its_link_or_number_and_unlinked(): void
+    {
+        $now = Carbon::now();
+        $this->database()->table('discussions')->insert([
+            ['id' => 7, 'title' => 'Public map support', 'slug' => 'public-map-support', 'comment_count' => 3, 'participant_count' => 1, 'created_at' => $now, 'user_id' => 2, 'is_private' => 0, 'hidden_at' => null],
+            ['id' => 8, 'title' => 'Hidden', 'slug' => 'hidden', 'comment_count' => 1, 'participant_count' => 1, 'created_at' => $now, 'user_id' => 1, 'is_private' => 0, 'hidden_at' => $now],
+        ]);
+        $link = fn (int $as, string $value, int $file = 1) => $this->send($this->request('POST', "/api/depot/files/$file/discussion", ['authenticatedAs' => $as, 'json' => ['discussion' => $value]]));
+
+        // The owner, by the discussion's link.
+        $response = $link(2, 'https://forum.example/d/7-public-map-support/3');
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(7, $this->json($response)['discussion']['id']);
+        $this->assertSame(7, (int) $this->database()->table('depot_files')->where('id', 1)->value('discussion_id'));
+
+        // Somebody else's file, a discussion the owner cannot see, and nonsense.
+        $this->assertSame(403, $link(4, '7')->getStatusCode());
+        $this->assertSame(422, $link(2, '8')->getStatusCode());
+        $this->assertSame(422, $link(2, 'https://forum.example/u/7')->getStatusCode());
+        $this->assertSame(7, (int) $this->database()->table('depot_files')->where('id', 1)->value('discussion_id'));
+
+        // A moderator, by its number; then unlinked, and Depot will not start one later.
+        $this->assertSame(200, $link(1, '8')->getStatusCode());
+        $this->assertSame(200, $link(2, '')->getStatusCode());
+        $row = $this->database()->table('depot_files')->where('id', 1)->first();
+        $this->assertNull($row->discussion_id);
+        $this->assertSame(0, (int) $row->wants_thread);
+    }
+
+    #[Test]
     public function a_composer_package_counts_its_packagist_installs(): void
     {
         $this->database()->table('depot_files')->where('id', 1)->update(['source' => 'github', 'repo' => 'example/map', 'package' => 'example/map', 'external_downloads' => 500]);
