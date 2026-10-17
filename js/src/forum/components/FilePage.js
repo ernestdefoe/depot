@@ -131,7 +131,10 @@ export default class FilePage extends Page {
     const v = file.version || {};
     return (
       <header className="DepotFileHero">
-        <div className={`DepotFileHero-backdrop ${file.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(file, 'thumb')} />
+        {/* Clipped here, not on the header, so File controls can open past its edge. */}
+        <div className="DepotFileHero-art">
+          <div className={`DepotFileHero-backdrop ${file.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(file, 'thumb')} />
+        </div>
         <div className="Page-container container DepotFileHero-inner">
           {Cover({ file, className: 'DepotFileHero-cover' })}
           <div className="DepotFileHero-text">

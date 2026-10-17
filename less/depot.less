@@ -502,13 +502,15 @@
 
 .DepotFileHero {
   position: relative;
-  overflow: hidden;
+  // Above the tabs and content below it, which File controls opens over.
+  z-index: 3;
   background: #0d1117;
   color: #fff;
   margin-top: calc(-1 * var(--page-top-padding, 0px));
 }
+.DepotFileHero-art { position: absolute; inset: 0; overflow: hidden; }
 .DepotFileHero-backdrop { position: absolute; inset: -30px; filter: blur(22px) saturate(1.3); opacity: 0.55; transform: scale(1.1); }
-.DepotFileHero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(8, 12, 18, 0.85), rgba(8, 12, 18, 0.35)); }
+.DepotFileHero::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(0deg, rgba(8, 12, 18, 0.85), rgba(8, 12, 18, 0.35)); }
 .DepotFileHero-inner { position: relative; z-index: 1; display: flex; gap: 24px; align-items: center; padding-top: 34px; padding-bottom: 30px; }
 .DepotFileHero-cover { flex: none; width: 128px; height: 128px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12); }
 .DepotFileHero-labels { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
