@@ -42,7 +42,7 @@ class KioskTest extends TestCase
             ],
             'kiosk_products' => [['id' => 1, 'name' => 'Pro pack', 'slug' => 'pro-pack', 'created_at' => $now, 'updated_at' => $now]],
             'kiosk_purchases' => [['id' => 1, 'number' => 'K-ABCDEFGHIJ', 'user_id' => 3, 'product_id' => 1, 'product_name' => 'Pro pack', 'amount_cents' => 500,
-                'currency' => 'USD', 'kind' => 'one_time', 'provider' => 'paypal', 'status' => 'active', 'created_at' => $now, 'updated_at' => $now, 'paid_at' => $now]],
+                'currency' => 'USD', 'kind' => 'one_off', 'provider' => 'paypal', 'status' => 'active', 'created_at' => $now, 'updated_at' => $now, 'paid_at' => $now]],
             'kiosk_entitlements' => [['id' => 1, 'user_id' => 3, 'purchase_id' => 1, 'type' => 'depot-file', 'target_id' => 1, 'starts_at' => $now->copy()->subMinute()]],
         ]);
     }
@@ -122,7 +122,7 @@ class KioskTest extends TestCase
     public function the_store_offers_the_product_that_sells_a_file(): void
     {
         $this->database()->table('kiosk_product_unlocks')->insert(['product_id' => 1, 'type' => 'depot-file', 'target_id' => 1]);
-        $this->database()->table('kiosk_prices')->insert(['product_id' => 1, 'amount_cents' => 500, 'currency' => 'USD', 'kind' => 'one_time', 'created_at' => Carbon::now()]);
+        $this->database()->table('kiosk_prices')->insert(['product_id' => 1, 'amount_cents' => 500, 'currency' => 'USD', 'kind' => 'one_off', 'created_at' => Carbon::now()]);
         $response = $this->send($this->request('GET', '/api/kiosk/store', ['authenticatedAs' => 4])->withQueryParams(['type' => 'depot-file', 'id' => '1']));
 
         $this->assertSame(200, $response->getStatusCode(), (string) $response->getBody());

@@ -763,8 +763,7 @@ export default class FilePage extends Page {
 
   /**
    * A paid file for someone who hasn't bought it: Kiosk's own offer, so every
-   * Buy button on the forum is the same. Kiosk draws nothing when no product
-   * sells the file yet; the line above it still says why there's no download.
+   * Buy button on the forum is the same.
    */
   offer(file) {
     let LockedNotice = null;
@@ -785,7 +784,7 @@ export default class FilePage extends Page {
             {t('file.login_to_buy')}
           </Button>
         ) : LockedNotice ? (
-          m(LockedNotice, { type: 'depot-file', id: file.id, name: file.title })
+          m(LockedNotice, { type: 'depot-file', id: file.id, title: t('file.buy_title') })
         ) : null}
       </div>
     );
