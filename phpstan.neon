@@ -12,3 +12,7 @@ parameters:
         - extend.php
         - src
     databaseMigrationsPath: [migrations]
+    excludePaths:
+        # Kiosk Sellers isn't in a released Kiosk yet (require-dev ^1.0). Drop once
+        # require-dev is bumped to the Kiosk release that has SellableByMembers.
+        - src/Kiosk/SellerFileUnlock.php
