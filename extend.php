@@ -129,6 +129,9 @@ return [
     // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and File::canDownload.
     (new Extend\Conditional())
         ->whenExtensionEnabled('ernestdefoe-kiosk', fn () => [
-            new \Ernestdefoe\Kiosk\Extend\UnlockType('depot-file', \ErnestDefoe\Depot\Kiosk\FileUnlock::class),
+            // Uploaders sell their own files too, where the installed Kiosk has member sellers.
+            new \Ernestdefoe\Kiosk\Extend\UnlockType('depot-file', interface_exists(\Ernestdefoe\Kiosk\Unlock\SellableByMembers::class)
+                ? \ErnestDefoe\Depot\Kiosk\SellerFileUnlock::class
+                : \ErnestDefoe\Depot\Kiosk\FileUnlock::class),
         ]),
 ];

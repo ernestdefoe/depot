@@ -106,6 +106,20 @@ export default class FilePage extends Page {
     );
   }
 
+  /** The uploader may sell their own upload through Kiosk Sellers (Kiosk decides who may sell). */
+  sellsOwn(file) {
+    const me = app.session.user;
+    return !!(
+      me &&
+      app.forum.attribute('kioskCanSell') &&
+      app.routes['kiosk.selling'] &&
+      file.user &&
+      String(file.user.id) === me.id() &&
+      file.source === 'upload' &&
+      file.approved
+    );
+  }
+
   act(path, body) {
     return api.post(path, body).then(() => this.load());
   }
@@ -195,6 +209,14 @@ export default class FilePage extends Page {
         {file.canModerate ? (
           <Button icon={file.featured ? 'far fa-star' : 'fas fa-star'} onclick={() => this.act(`files/${file.id}/feature`)}>
             {file.featured ? t('file.unfeature') : t('file.feature')}
+          </Button>
+        ) : null}
+        {this.sellsOwn(file) ? (
+          <Button
+            icon="fas fa-cash-register"
+            onclick={() => m.route.set(app.route('kiosk.selling', file.paid ? {} : { sell: 'depot-file:' + file.id }))}
+          >
+            {file.paid ? t('file.manage_listing') : t('file.sell_own')}
           </Button>
         ) : null}
         {file.canSell ? (
