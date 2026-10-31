@@ -126,6 +126,8 @@ class Presenter
             'icon' => $f->icon ?: null,
             'trend' => $trend ?? array_fill(0, self::TREND_DAYS, 0),
             'featured' => $f->featured,
+            // Sold through Kiosk: the download is for buyers.
+            'paid' => $f->paid,
             'approved' => $f->approved_at !== null,
             'created' => $f->created_at?->toIso8601String(),
         ];
@@ -208,7 +210,9 @@ class Presenter
             'canLinkDiscussion' => $f->canLinkDiscussion($actor),
             'canModerate' => $actor->hasPermission('depot.moderate'),
             'canReview' => $actor->exists && ! $f->isOwnedBy($actor) && $actor->hasPermission('depot.review'),
-            'canDownload' => $actor->hasPermission('depot.download'),
+            'canDownload' => $f->canDownload($actor),
+            // "Sell through Kiosk" in File controls; "Make it free" stays while it is paid.
+            'canSell' => $actor->hasPermission('depot.moderate') && $f->source === File::SELLABLE && ($f->paid || File::kioskEnabled()),
             'updateUrl' => $this->url->to('api')->route('depot.latest', ['slug' => $f->slug]),
         ];
     }

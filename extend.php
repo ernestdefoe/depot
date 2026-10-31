@@ -80,6 +80,7 @@ return [
         ->delete('/depot/versions/{id:[0-9]+}', 'depot.versions.delete', Controller\DeleteVersionController::class)
         ->post('/depot/files/{id:[0-9]+}/approve', 'depot.files.approve', Controller\ApproveFileController::class)
         ->post('/depot/files/{id:[0-9]+}/feature', 'depot.files.feature', Controller\FeatureFileController::class)
+        ->post('/depot/files/{id:[0-9]+}/sell', 'depot.files.sell', Controller\SellFileController::class)
         ->post('/depot/files/{id:[0-9]+}/discussion', 'depot.files.discussion', Controller\LinkDiscussionController::class)
         ->post('/depot/files/{id:[0-9]+}/watch', 'depot.files.watch', Controller\WatchFileController::class)
         ->post('/depot/files/{id:[0-9]+}/review', 'depot.reviews.save', Controller\SaveReviewController::class)
@@ -124,4 +125,10 @@ return [
         ->default('ernestdefoe-depot.github_sync', '1')
         ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => (int) ($v ?: 250))
         ->serializeToForum('depotSupportThread', 'ernestdefoe-depot.support_thread', fn ($v) => $v !== '0'),
+
+    // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and File::canDownload.
+    (new Extend\Conditional())
+        ->whenExtensionEnabled('ernestdefoe-kiosk', fn () => [
+            new \Ernestdefoe\Kiosk\Extend\UnlockType('depot-file', \ErnestDefoe\Depot\Kiosk\FileUnlock::class),
+        ]),
 ];

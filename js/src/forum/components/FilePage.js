@@ -197,6 +197,11 @@ export default class FilePage extends Page {
             {file.featured ? t('file.unfeature') : t('file.feature')}
           </Button>
         ) : null}
+        {file.canSell ? (
+          <Button icon={file.paid ? 'fas fa-lock-open' : 'fas fa-store'} onclick={() => this.act(`files/${file.id}/sell`, { paid: !file.paid })}>
+            {file.paid ? t('file.make_free') : t('file.sell')}
+          </Button>
+        ) : null}
         {file.canEdit ? (
           <Button icon="far fa-trash-alt" onclick={() => this.remove(file)}>
             {t('file.delete')}
@@ -756,6 +761,36 @@ export default class FilePage extends Page {
     ];
   }
 
+  /**
+   * A paid file for someone who hasn't bought it: Kiosk's own offer, so every
+   * Buy button on the forum is the same. Kiosk draws nothing when no product
+   * sells the file yet; the line above it still says why there's no download.
+   */
+  offer(file) {
+    let LockedNotice = null;
+    try {
+      const mod = flarum.reg.get('ernestdefoe-kiosk', 'forum/components/LockedNotice');
+      LockedNotice = mod && (mod.default || mod);
+    } catch (e) {
+      LockedNotice = null;
+    }
+
+    return (
+      <div className="DepotOffer">
+        <p className="Depot-dim">
+          <Icon name="fas fa-lock" /> {t('file.paid_notice')}
+        </p>
+        {!app.session.user ? (
+          <Button className="Button Button--primary Button--large" onclick={() => app.modal.show(() => import('flarum/forum/components/LogInModal'))}>
+            {t('file.login_to_buy')}
+          </Button>
+        ) : LockedNotice ? (
+          m(LockedNotice, { type: 'depot-file', id: file.id, name: file.title })
+        ) : null}
+      </div>
+    );
+  }
+
   /** An uploaded or linked file: the download button, its older versions, and Watch. */
   downloadCard(file, v) {
     return (
@@ -776,6 +811,8 @@ export default class FilePage extends Page {
               </Button>
             ))}
           </SplitDropdown>
+        ) : file.paid ? (
+          this.offer(file)
         ) : (
           <Button className="Button Button--large" disabled>
             {app.session.user ? t('file.no_download_permission') : t('file.login_to_download')}

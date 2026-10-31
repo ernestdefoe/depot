@@ -48,7 +48,8 @@ class DownloadController implements RequestHandlerInterface
         if (! $version->path && ! $version->url) {
             return new Response('php://memory', 404);
         }
-        File::query()->visibleTo($actor)->findOrFail($version->file_id);
+        // A paid file: buyers, its uploader and moderators only.
+        $actor->assertPermission(File::query()->visibleTo($actor)->findOrFail($version->file_id)->canDownload($actor));
 
         $ip = (string) ($request->getAttribute('ipAddress') ?? Arr::get($request->getServerParams(), 'REMOTE_ADDR', ''));
         $this->downloads->count($version, $actor, $ip);

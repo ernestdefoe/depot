@@ -37,6 +37,8 @@ export default class Spotlight extends Component {
 
   /** The spotlight only has the card; the sheet needs the full file. */
   download(file) {
+    // Sold through Kiosk: its page has the Buy button, or the download for a buyer.
+    if (file.paid) return m.route.set(app.route('depot.file', { slug: file.slug }));
     startDownload(file.version);
     app.modal.show(DownloadModal, { file, version: file.version });
   }

@@ -317,4 +317,14 @@ class DepotTest extends TestCase
         $this->assertSame([], File::cleanIcon(['name' => 'evil fa-ghost']));
         $this->assertNull(File::cleanIcon(['name' => 'fas fa-ghost', 'color' => 'red;background:url(x)'])['color']);
     }
+
+    #[Test]
+    public function a_paid_file_stays_locked_without_kiosk(): void
+    {
+        // Kiosk isn't enabled here: "paid" must fail closed, never open.
+        $this->database()->table('depot_files')->where('id', 1)->update(['paid' => true]);
+
+        $this->assertSame(403, $this->send($this->request('GET', '/downloads/get/1', ['authenticatedAs' => 4]))->getStatusCode());
+        $this->assertSame(302, $this->send($this->request('GET', '/downloads/get/1', ['authenticatedAs' => 2]))->getStatusCode());
+    }
 }

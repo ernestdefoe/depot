@@ -149,6 +149,13 @@ export function price(tier) {
 
 /** "From $4 a month" for a product's card; nothing for anything else. */
 export function PriceBadge({ file }) {
+  if (file.paid) {
+    return (
+      <span className="Depot-pill Depot-pill--price">
+        <Icon name="fas fa-lock" /> {t('file.paid')}
+      </span>
+    );
+  }
   const low = cheapest(file.tiers);
   if (!low) return null;
   return (

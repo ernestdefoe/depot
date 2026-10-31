@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array|null $requires
  * @property array|null $install
  * @property bool $featured
+ * @property bool $paid
  * @property \Carbon\Carbon|null $approved_at
  * @property bool $wants_thread
  * @property int|null $thread_tag_id
@@ -59,6 +60,9 @@ class File extends AbstractModel
 {
     public const SOURCES = ['upload', 'link', 'github'];
 
+    /** The one source Kiosk can sell: bytes only this forum hands out. */
+    public const SELLABLE = 'upload';
+
     protected $table = 'depot_files';
 
     protected $guarded = [];
@@ -74,6 +78,7 @@ class File extends AbstractModel
         'requires' => 'array',
         'install' => 'array',
         'featured' => 'bool',
+        'paid' => 'bool',
         'wants_thread' => 'bool',
         'approved_at' => 'datetime',
         'released_at' => 'datetime',
@@ -180,6 +185,31 @@ class File extends AbstractModel
     public function isProduct(): bool
     {
         return $this->source === 'product';
+    }
+
+    /**
+     * May this person download it? A paid file only for its buyers, its
+     * uploader and moderators. 🚨 Fails closed: with Kiosk off, nobody else
+     * holds a paid file. Kiosk keeps the answer for the whole request.
+     */
+    public function canDownload(User $actor): bool
+    {
+        if (! $actor->hasPermission('depot.download')) {
+            return false;
+        }
+
+        if (! $this->paid || $this->isOwnedBy($actor) || $actor->hasPermission('depot.moderate')) {
+            return true;
+        }
+
+        return $actor->exists && self::kioskEnabled()
+            && resolve(\Ernestdefoe\Kiosk\Service\Access::class)->has($actor, 'depot-file', $this->id);
+    }
+
+    public static function kioskEnabled(): bool
+    {
+        return class_exists(\Ernestdefoe\Kiosk\Service\Access::class)
+            && resolve(\Flarum\Extension\ExtensionManager::class)->isEnabled('ernestdefoe-kiosk');
     }
 
     /**
