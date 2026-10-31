@@ -45,7 +45,7 @@
         "source": "https://github.com/ernestdefoe/depot"
     },
     "require-dev": {
-        "ernestdefoe/kiosk": "^1.0",
+        "ernestdefoe/kiosk": "^1.2",
         "flarum/phpstan": "^2.0",
         "flarum/tags": "^2.0",
         "flarum/testing": "^2.0"
