@@ -17,7 +17,12 @@ class SellerFileUnlock extends FileUnlock implements SellableByMembers
     public function owns(User $seller, int $targetId): bool
     {
         return $seller->exists && File::query()->whereKey($targetId)
-            ->where('user_id', $seller->id)->where('source', File::SELLABLE)->whereNotNull('approved_at')->exists();
+            ->where('user_id', $seller->id)->where('source', File::SELLABLE)->whereNotNull('approved_at')->exists()
+            // Not a file the forum sells itself: its uploader can't undercut it.
+            && ! File::query()->getConnection()->table('kiosk_product_unlocks')
+                ->join('kiosk_products', 'kiosk_products.id', '=', 'kiosk_product_unlocks.product_id')
+                ->where('kiosk_product_unlocks.type', 'depot-file')->where('kiosk_product_unlocks.target_id', $targetId)
+                ->whereNull('kiosk_products.seller_id')->exists();
     }
 
     public function searchOwn(User $seller, string $query, int $limit): array
