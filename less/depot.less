@@ -86,7 +86,7 @@
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   &:hover { background: var(--control-bg-shaded); }
-  &.is-active { background: var(--primary-color); color: var(--body-bg); }
+  &.is-active { background: var(--primary-color); color: var(--button-primary-color); }
 }
 .Depot-chip--static { cursor: default; }
 
@@ -299,7 +299,13 @@
   .Depot-nav-root .Button-icon { color: var(--label-color); }
 }
 
-.DepotSubnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; .Depot-chip { text-decoration: none; } }
+.DepotSubnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+// The chips are links: match themes' `a:not(.Button)` colour rules (Bespoke's is 0,3,1) so ours win.
+.DepotPage .DepotSubnav a.Depot-chip:not(.Button) {
+  text-decoration: none;
+  color: var(--control-color);
+  &.is-active { color: var(--button-primary-color); }
+}
 
 // ------------------------------------------------------------------ tiles
 
