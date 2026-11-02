@@ -1,6 +1,6 @@
 {
     "name": "ernestdefoe/depot",
-    "description": "Depot \u2014 a downloads section for Flarum 2: files with versions and changelogs, checksums, ratings and reviews, and category permissions.",
+    "description": "Depot — a downloads section for Flarum 2: files with versions and changelogs, checksums, ratings and reviews, and category permissions.",
     "keywords": [
         "flarum",
         "downloads",
@@ -13,6 +13,7 @@
     "authors": [
         {
             "name": "Ernest Defoe",
+            "email": "ernestdefoe@gmail.com",
             "homepage": "https://ernestdefoe.online"
         }
     ],
