@@ -32,7 +32,7 @@ class ShowFileController implements RequestHandlerInterface
             ->orderByDesc('download_count')->take(3)->get();
 
         return new JsonResponse($this->presenter->full($file, $actor, $related) + [
-            'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c))->values(),
+            'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c, Category::lockedFor($actor)))->values(),
         ]);
     }
 }

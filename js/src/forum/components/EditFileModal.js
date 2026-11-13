@@ -49,7 +49,7 @@ export default class EditFileModal extends FormModal {
   }
 
   content() {
-    const leaves = state.categories.filter((c) => !c.locked && !state.categories.some((s) => s.parent === c.slug));
+    const leaves = state.categories.filter((c) => c.open && !state.categories.some((s) => s.parent === c.slug));
     return (
       <div className="Modal-body">
         {this.input('title', t('upload.name_label'), { maxlength: 120 })}

@@ -61,7 +61,7 @@ export default class UploadModal extends FormModal {
 
   /** Categories a file can go in: open ones without subcategories of their own. */
   leaves() {
-    return state.categories.filter((c) => !c.locked && !state.categories.some((s) => s.parent === c.slug));
+    return state.categories.filter((c) => c.open && !state.categories.some((s) => s.parent === c.slug));
   }
 
   steps() {

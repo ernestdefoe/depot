@@ -35,7 +35,14 @@ class Presenter
     ) {
     }
 
-    public function category(Category $c): array
+    /**
+     * `locked`: the category is kept to some groups. `open`: this viewer may
+     * use it anyway (a member of one of them, or a moderator); pass
+     * Category::lockedFor($actor) as $closed.
+     *
+     * @param int[] $closed
+     */
+    public function category(Category $c, array $closed = []): array
     {
         $groups = $c->lockGroups();
 
@@ -50,6 +57,7 @@ class Presenter
             'position' => $c->position,
             'count' => $c->file_count,
             'locked' => $groups->isNotEmpty(),
+            'open' => ! in_array($c->id, $closed, true),
             'groups' => $groups->map(fn ($g) => $g->name_plural ?: $g->name_singular)->values(),
             'groupIds' => $groups->pluck('id')->values(),
         ];

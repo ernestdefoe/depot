@@ -101,7 +101,7 @@ class BrowseController implements RequestHandlerInterface
             'files' => $files->map(fn ($f) => $cards[$f->id])->values(),
             'hasMore' => $more,
             'page' => $page,
-            'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c))->values(),
+            'categories' => Category::tree()->map(fn ($c) => $this->presenter->category($c, Category::lockedFor($actor)))->values(),
             'compat' => $this->compat($actor, $category),
             'featured' => $featured->map(fn ($f) => $cards[$f->id])->values(),
             'locked' => $first ? $this->locked($actor, $category) : [],

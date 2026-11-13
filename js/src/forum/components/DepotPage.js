@@ -288,16 +288,16 @@ export default class DepotPage extends Page {
           const count = childrenOf(c.slug).reduce((n, s) => n + s.count, c.count);
           return (
             <a
-              className={`DepotTile ${c.locked ? 'DepotTile--locked' : ''}`}
+              className={`DepotTile ${c.open ? '' : 'DepotTile--locked'}`}
               href={app.route('depot.category', { slug: c.slug })}
               style={{ '--label-color': c.color || 'var(--primary-color)' }}
             >
               <span className="DepotTile-art" style={this.tileArt(c)} />
               <span className="DepotTile-icon">
-                <Icon name={c.locked ? 'fas fa-lock' : c.icon || 'fas fa-folder'} />
+                <Icon name={c.open ? c.icon || 'fas fa-folder' : 'fas fa-lock'} />
               </span>
               <span className="DepotTile-name">{c.name}</span>
-              <span className="DepotTile-count">{c.locked ? t('tiles.locked', { group: c.groups.join(', ') }) : t('tiles.count', { count })}</span>
+              <span className="DepotTile-count">{c.open ? t('tiles.count', { count }) : t('tiles.locked', { group: c.groups.join(', ') })}</span>
             </a>
           );
         })}

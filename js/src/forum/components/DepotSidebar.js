@@ -75,7 +75,7 @@ export default class DepotSidebar extends IndexSidebar {
         `depot-${c.slug}`,
         <LinkButton
           href={app.route('depot.category', { slug: c.slug })}
-          icon={c.locked ? 'fas fa-lock' : c.icon || 'fas fa-folder'}
+          icon={c.open ? c.icon || 'fas fa-folder' : 'fas fa-lock'}
           className="Depot-nav-root"
           style={{ '--label-color': c.color }}
         >

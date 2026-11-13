@@ -35,8 +35,12 @@ class Counters
 
     public function categories(): void
     {
+        // One grouped count for the whole tree; only a changed number is written.
+        $counts = File::query()->whereNotNull('approved_at')->whereNotNull('category_id')
+            ->groupBy('category_id')->selectRaw('category_id, count(*) as n')->pluck('n', 'category_id');
+
         foreach (Category::query()->get() as $category) {
-            $category->file_count = File::query()->where('category_id', $category->id)->whereNotNull('approved_at')->count();
+            $category->file_count = (int) ($counts[$category->id] ?? 0);
             $category->saveQuietly();
         }
     }
