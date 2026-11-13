@@ -264,7 +264,8 @@ export default class DepotPage extends Page {
   /** Subcategories as chips above the files — one tap down, one tap back. */
   subnav(c) {
     const root = rootOf(c);
-    const subs = childrenOf(root.slug);
+    // Only the ones this person may open: a closed one would just be an empty list.
+    const subs = childrenOf(root.slug).filter((sub) => sub.open);
     if (!subs.length) return null;
     const chip = (cat, label) => (
       <a className={`Depot-chip ${cat.slug === c.slug ? 'is-active' : ''}`} href={app.route('depot.category', { slug: cat.slug })}>

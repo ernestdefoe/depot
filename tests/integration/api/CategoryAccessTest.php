@@ -112,6 +112,22 @@ class CategoryAccessTest extends TestCase
     }
 
     #[Test]
+    public function a_parents_subcategory_chips_are_only_the_ones_each_person_opens(): void
+    {
+        // DepotPage::subnav(): the parent's children, kept when `open`.
+        $chips = fn (?int $as) => array_values(array_column(array_filter(
+            $this->browse($as, ['category' => 'magazines'])['categories'],
+            fn ($c) => $c['parent'] === 'magazines' && $c['open']
+        ), 'slug'));
+
+        $this->assertSame(['beginner'], $chips(null), 'a guest');
+        $this->assertSame(['beginner'], $chips(self::MEMBER), 'a plain member');
+        $this->assertSame(['beginner', 'intermediate'], $chips(self::GROUP1), 'Group1');
+        $this->assertSame(['beginner', 'intermediate', 'advanced'], $chips(self::GROUP2), 'Group2 only');
+        $this->assertSame(['beginner', 'intermediate', 'advanced'], $chips(self::ADMIN), 'an admin');
+    }
+
+    #[Test]
     public function a_restricted_category_still_says_who_it_is_for(): void
     {
         $advanced = collect($this->browse(self::GROUP2)['categories'])->firstWhere('slug', 'advanced');
