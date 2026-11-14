@@ -30,7 +30,7 @@ return [
                 $table->unsignedInteger('file_id');
                 $table->char('fingerprint', 64);
                 $table->dateTime('created_at');
-                $table->index(['file_id', 'fingerprint', 'created_at'], 'depot_download_log_seen');
+                $table->index(['file_id', 'fingerprint', 'created_at']);
                 $table->index('created_at');
                 $table->foreign('file_id')->references('id')->on('depot_files')->cascadeOnDelete();
             });

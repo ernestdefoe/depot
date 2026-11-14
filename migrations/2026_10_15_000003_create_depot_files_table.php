@@ -57,8 +57,8 @@ return [
 
             $table->timestamps();
 
-            $table->index(['category_id', 'approved_at', 'released_at'], 'depot_files_browse');
-            $table->index(['approved_at', 'download_count'], 'depot_files_popular');
+            $table->index(['category_id', 'approved_at', 'released_at']);
+            $table->index(['approved_at', 'download_count']);
             $table->index(['user_id', 'created_at']);
             $table->index(['source', 'synced_at']);
             $table->index(['featured', 'released_at']);
