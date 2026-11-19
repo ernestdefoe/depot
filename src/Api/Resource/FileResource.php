@@ -40,6 +40,9 @@ class FileResource extends AbstractDatabaseResource
         'canLinkDiscussion', 'canModerate', 'canReview', 'canDownload', 'canSell', 'updateUrl',
     ];
 
+    /** What a file's editors change through Update; FileDetails checks them. */
+    private const EDITABLE = ['title', 'tagline', 'description', 'game', 'licence', 'compat', 'install', 'requires', 'fields', 'category', 'repo'];
+
     public function __construct(
         private readonly Presenter $presenter,
         private readonly FileActions $actions,
@@ -135,9 +138,10 @@ class FileResource extends AbstractDatabaseResource
             ->visible(fn (File $f, Context $context) => ! $context->listing())
             ->get(fn (File $f, Context $context) => $this->presenter->pageOf($f, $context->getActor())[$key]);
 
+        $fields = [...array_map($card, self::CARD), ...array_map($page, self::PAGE)];
+
         return [
-            ...array_map($card, self::CARD),
-            ...array_map($page, self::PAGE),
+            ...array_map(fn (Schema\Attribute $f) => in_array($f->name, self::EDITABLE, true) ? $this->actions->editable($f, $f->name) : $f, $fields),
             ...$this->actions->fields(),
         ];
     }

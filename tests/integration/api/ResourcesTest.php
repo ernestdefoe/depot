@@ -72,6 +72,22 @@ class ResourcesTest extends TestCase
     }
 
     #[Test]
+    public function its_editors_change_a_files_details_with_the_same_checks_as_an_upload(): void
+    {
+        $this->assertSame(403, $this->patch(3, 'depot-files', 1, ['title' => 'Mine now']));
+        $this->assertSame(200, $this->patch(2, 'depot-files', 1, [
+            'title' => 'Bigger map', 'tagline' => 'Now with caves', 'compat' => '1.21, 1.20', 'install' => "Unzip it\nRestart", 'category' => 'big-maps',
+        ]));
+
+        $page = $this->page(null, 'map');
+        $this->assertSame(['Bigger map', 'Now with caves', ['1.21', '1.20'], ['Unzip it', 'Restart'], 'big-maps'], [$page['title'], $page['tagline'], $page['compat'], $page['install'], $page['category']]);
+
+        // A heading with subcategories, and an empty title, are refused as they are on upload.
+        $this->assertSame(422, $this->patch(2, 'depot-files', 1, ['category' => 'maps']));
+        $this->assertSame(422, $this->patch(2, 'depot-files', 1, ['title' => '  ']));
+    }
+
+    #[Test]
     public function a_file_is_found_by_its_slug_or_number(): void
     {
         $this->assertSame('map', $this->page(null, 1)['slug']);

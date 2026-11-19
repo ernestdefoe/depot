@@ -7,6 +7,7 @@ use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Model\Version;
 use ErnestDefoe\Depot\Notification\FileApproved;
 use ErnestDefoe\Depot\Service\Counters;
+use ErnestDefoe\Depot\Service\FileDetails;
 use ErnestDefoe\Depot\Service\Paywall;
 use ErnestDefoe\Depot\Service\SupportThread;
 use ErnestDefoe\Depot\Storage\Store;
@@ -29,6 +30,9 @@ class FileActions
     /** @var \WeakMap<File, array{approve?: bool, watch?: bool}> what a save must do once it lands */
     private \WeakMap $after;
 
+    /** @var \WeakMap<File, array<string, mixed>> typed details sent in this update, checked together */
+    private \WeakMap $details;
+
     /** @var \WeakMap<File, array{paths: array<mixed>, shots: array<mixed>}> stored bytes a delete frees */
     private \WeakMap $stored;
 
@@ -39,8 +43,10 @@ class FileActions
         private readonly Paywall $paywall,
         private readonly Store $store,
         private readonly TranslatorInterface $translator,
+        private readonly FileDetails $fileDetails,
     ) {
         $this->after = new \WeakMap();
+        $this->details = new \WeakMap();
         $this->stored = new \WeakMap();
     }
 
@@ -86,10 +92,26 @@ class FileActions
         ];
     }
 
+    /**
+     * A detail the file's editors may change (title, texts, lists,
+     * category, repository): kept until the update is checked as a whole.
+     */
+    public function editable(Schema\Attribute $attribute, string $key): Schema\Attribute
+    {
+        return $attribute
+            ->writable(fn (File $f, Context $context) => $f->canEdit($context->getActor()))
+            ->set(fn (File $f, mixed $value) => $this->details[$f] = [$key => $value] + ($this->details[$f] ?? []));
+    }
+
     /** An update is for its editors, its moderators, and (for watching alone) anyone who can see it. */
     public function updating(File $file, User $actor): void
     {
         $actor->assertRegistered();
+
+        if (isset($this->details[$file])) {
+            $this->fileDetails->apply($file, $this->details[$file], $actor, false);
+            unset($this->details[$file]);
+        }
     }
 
     public function saved(File $file, User $actor): void

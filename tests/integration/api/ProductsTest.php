@@ -94,7 +94,7 @@ class ProductsTest extends TestCase
         $version = $file->versions()->first();
 
         $this->assertSame(404, $this->send($this->request('GET', "/downloads/get/{$version->id}", ['authenticatedAs' => 1]))->getStatusCode());
-        $this->assertSame(403, $this->send($this->request('POST', "/api/depot/files/{$file->id}", ['authenticatedAs' => 1, 'json' => ['title' => 'Renamed']]))->getStatusCode());
+        $this->assertSame(403, $this->patch(1, 'depot-files', $file->id, ['title' => 'Renamed']));
         $this->assertSame(403, $this->remove(1, 'depot-files', $file->id));
     }
 

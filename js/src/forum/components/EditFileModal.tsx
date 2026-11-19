@@ -148,21 +148,26 @@ export default class EditFileModal extends FormModal<EditFileModalAttrs> {
   onsubmit(e: SubmitEvent) {
     e.preventDefault();
     if (this.loading) return;
-    const form = new FormData();
+    const file = this.attrs.file;
     // A file with no category keeps none: an empty one is not sent.
-    Object.entries(this.values).forEach(([k, v]) => (k !== 'category' || v) && form.append(k, v));
-    this.added.forEach((s) => form.append('screenshots[]', s.file));
+    const attributes = Object.fromEntries(Object.entries(this.values).filter(([k, v]) => k !== 'category' || v));
+    const shots = new FormData();
+    this.added.forEach((s) => shots.append('screenshots[]', s.file));
 
     this.loading = true;
-    api.upload<{ slug: string }>(`files/${this.attrs.file.id}`, form).then(
-      (r) => {
-        this.hide();
-        this.attrs.onsave && this.attrs.onsave(r.slug);
-      },
-      (error: RequestError) => {
-        this.loading = false;
-        this.onerror(error);
-      }
-    );
+    // The details through the file's resource; new screenshots, being uploads, through their own endpoint.
+    resources
+      .update('depot-files', file.id, attributes)
+      .then(() => (this.added.length ? api.upload(`files/${file.id}/screenshots`, shots) : null))
+      .then(
+        () => {
+          this.hide();
+          this.attrs.onsave && this.attrs.onsave(file.slug);
+        },
+        (error: RequestError) => {
+          this.loading = false;
+          this.onerror(error);
+        }
+      );
   }
 }

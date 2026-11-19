@@ -136,9 +136,7 @@ class DepotTest extends TestCase
     #[Test]
     public function a_member_cannot_edit_or_delete_anothers_file(): void
     {
-        $edit = $this->send($this->request('POST', '/api/depot/files/1', ['authenticatedAs' => 4, 'json' => ['title' => 'Mine now']]));
-
-        $this->assertSame(403, $edit->getStatusCode());
+        $this->assertSame(403, $this->patch(4, 'depot-files', 1, ['title' => 'Mine now']));
         $this->assertSame(403, $this->remove(4, 'depot-files', 1));
         $this->assertSame(403, $this->patch(4, 'depot-files', 1, ['isFeatured' => true]));
     }

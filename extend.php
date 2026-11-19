@@ -87,7 +87,7 @@ return [
     (new Extend\Routes('api'))
         ->get('/depot/latest/{slug}', 'depot.latest', Controller\LatestController::class)
         ->post('/depot/files', 'depot.files.create', Controller\SaveFileController::class)
-        ->post('/depot/files/{id:[0-9]+}', 'depot.files.update', Controller\SaveFileController::class)
+        ->post('/depot/files/{id:[0-9]+}/screenshots', 'depot.screenshots.create', Controller\AddScreenshotsController::class)
         ->post('/depot/files/{id:[0-9]+}/versions', 'depot.versions.create', Controller\SaveVersionController::class)
         // The admin page's drag-and-drop: the whole tree in one request. Asserts admin itself.
         ->post('/depot/categories/order', 'depot.categories.order', Controller\OrderCategoriesController::class),
