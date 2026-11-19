@@ -91,6 +91,11 @@ class CategoryResource extends AbstractDatabaseResource
                 ->nullable()
                 ->rule(fn () => fn ($attribute, $value, $fail) => $value && (! ($p = Category::query()->find((int) $value)) || $p->parent_id)
                     ? $fail($this->message('bad_parent')) : null),
+            // As the admin page draws the tree: the parent by its address, and whether it is kept to some groups.
+            Schema\Str::make('parent')
+                ->nullable()
+                ->get(fn (Category $c) => $c->parent_id ? Category::tree()->firstWhere('id', $c->parent_id)?->slug : null),
+            Schema\Boolean::make('locked')->get(fn (Category $c) => $c->groups->isNotEmpty()),
             Schema\Arr::make('groupIds')
                 ->writable()
                 ->get(fn (Category $c) => $c->groups->pluck('id')->values()->all())

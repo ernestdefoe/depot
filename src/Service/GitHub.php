@@ -54,6 +54,29 @@ class GitHub
         // only the newest few can be new.
         $limit ??= $file->versions()->exists() ? 5 : 30;
 
+        $releases = $this->releases($file, $limit);
+        if ($releases === null) {
+            return [];
+        }
+
+        $added = $this->addReleases($file, $releases);
+
+        if ($added) {
+            $this->counters->file($file);
+        }
+
+        $this->adoptPackageOrIcon($file);
+
+        return $added;
+    }
+
+    /**
+     * The repository's newest releases, or null when it is refused or GitHub fails.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function releases(File $file, int $limit): ?array
+    {
         try {
             // With the forum's token, a member could otherwise name a private
             // repository the token can read and publish its releases here.
@@ -62,7 +85,7 @@ class GitHub
                 if (! is_array($repo) || ($repo['private'] ?? true) !== false) {
                     $this->log->info("[depot] GitHub sync refused for {$file->repo}: not a public repository");
 
-                    return [];
+                    return null;
                 }
             }
 
@@ -74,9 +97,20 @@ class GitHub
             $this->limited = in_array($status, [403, 429], true);
             $this->log->info("[depot] GitHub sync skipped for {$file->repo}: ".$e->getMessage());
 
-            return [];
+            return null;
         }
 
+        return $releases;
+    }
+
+    /**
+     * Each published release the file doesn't have yet, created as a version.
+     *
+     * @param array<int, array<string, mixed>> $releases
+     * @return Version[]
+     */
+    private function addReleases(File $file, array $releases): array
+    {
         $known = $file->versions()->whereNotNull('github_release_id')->pluck('github_release_id')->all();
         $numbers = $file->versions()->pluck('version')->all();
         $added = [];
@@ -87,8 +121,6 @@ class GitHub
                 continue;
             }
 
-            $asset = $release['assets'][0] ?? null;
-            $digest = $asset['digest'] ?? null;
             $version = mb_substr(ltrim((string) ($release['tag_name'] ?? ''), 'vV'), 0, 40);
 
             if ($version === '' || in_array($version, $numbers, true)) {
@@ -96,23 +128,39 @@ class GitHub
             }
             $numbers[] = $version;
 
-            $added[] = $file->versions()->create([
-                'version' => $version,
-                'changelog' => Changelog::parse((string) ($release['body'] ?? '')),
-                'url' => $asset['browser_download_url'] ?? ($release['zipball_url'] ?? $release['html_url']),
-                'release_url' => $release['html_url'] ?? null,
-                'filename' => $asset['name'] ?? null,
-                'size' => (int) ($asset['size'] ?? 0),
-                'sha256' => is_string($digest) && str_starts_with($digest, 'sha256:') ? substr($digest, 7) : null,
-                'github_release_id' => $release['id'],
-                'created_at' => Carbon::parse($release['published_at'] ?? 'now'),
-            ]);
+            $added[] = $file->versions()->create($this->releaseAttributes($release, $version));
         }
 
-        if ($added) {
-            $this->counters->file($file);
-        }
+        return $added;
+    }
 
+    /**
+     * A version's columns from one GitHub release and its first asset.
+     *
+     * @param array<string, mixed> $release
+     * @return array<string, mixed>
+     */
+    private function releaseAttributes(array $release, string $version): array
+    {
+        $asset = $release['assets'][0] ?? null;
+        $digest = $asset['digest'] ?? null;
+
+        return [
+            'version' => $version,
+            'changelog' => Changelog::parse((string) ($release['body'] ?? '')),
+            'url' => $asset['browser_download_url'] ?? ($release['zipball_url'] ?? $release['html_url']),
+            'release_url' => $release['html_url'] ?? null,
+            'filename' => $asset['name'] ?? null,
+            'size' => (int) ($asset['size'] ?? 0),
+            'sha256' => is_string($digest) && str_starts_with($digest, 'sha256:') ? substr($digest, 7) : null,
+            'github_release_id' => $release['id'],
+            'created_at' => Carbon::parse($release['published_at'] ?? 'now'),
+        ];
+    }
+
+    /** Finds the file's Composer package on Packagist, or else reads its icon from the repository. */
+    private function adoptPackageOrIcon(File $file): void
+    {
         // A repository that publishes a Composer package is installed with
         // Composer: find the package once, then its numbers come from Packagist.
         if (! $file->package && ($package = $this->packagist->detect($file->repo))) {
@@ -124,8 +172,6 @@ class GitHub
         if (! $file->package && $file->getRawOriginal('icon') === null) {
             $this->iconFromRepo($file);
         }
-
-        return $added;
     }
 
     /** Whether GitHub refused for the quota during this run. */

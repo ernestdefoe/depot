@@ -239,23 +239,15 @@ class Presenter
         $covers = $this->covers($ids);
         $trends = $this->trends($ids);
 
-        $reviews = $f->reviews()->with('user')
-            ->orderByDesc('helpful_count')->orderByDesc('id')->take(30)->get();
-        foreach ($reviews as $r) {
-            $r->setRelation('version', $f->versions->firstWhere('id', $r->version_id));
-        }
-
-        $helpful = $actor->exists && $reviews->isNotEmpty()
-            ? $this->db->table('depot_review_helpful')->where('user_id', $actor->id)->whereIn('review_id', $reviews->pluck('id'))->pluck('review_id')->all()
-            : [];
+        $reviews = $this->topReviews($f);
+        $helpful = $this->helpfulIds($actor, $reviews);
 
         $mine = $actor->exists ? $f->reviews()->where('user_id', $actor->id)->first() : null;
 
         $distribution = $this->db->table('depot_reviews')->where('file_id', $f->id)
             ->selectRaw('rating, count(*) as n')->groupBy('rating')->pluck('n', 'rating');
 
-        $author = $f->user ? $this->db->table('depot_files')->where('user_id', $f->user_id)->whereNotNull('approved_at')
-            ->selectRaw('count(*) as files, coalesce(sum(download_count), 0) as downloads')->first() : null;
+        $author = $this->authorTotals($f);
 
         return $this->card($f, $f->screenshots->first(), $trends[$f->id] ?? null) + [
             'related' => $related->map(fn (File $r) => $this->card($r, $covers[$r->id] ?? null, $trends[$r->id] ?? null))->values()->all(),
@@ -275,6 +267,53 @@ class Presenter
             'distribution' => array_map(fn ($star) => (int) ($distribution[$star] ?? 0), [5, 4, 3, 2, 1]),
             'discussion' => $this->discussion($f, $actor),
             'author' => $author ? ['files' => (int) $author->files, 'downloads' => (int) $author->downloads] : null,
+        ] + $this->abilities($f, $actor);
+    }
+
+    /**
+     * The file's 30 most helpful reviews, each with its version from those already loaded.
+     *
+     * @return Collection<int, Review>
+     */
+    private function topReviews(File $f): Collection
+    {
+        $reviews = $f->reviews()->with('user')
+            ->orderByDesc('helpful_count')->orderByDesc('id')->take(30)->get();
+        foreach ($reviews as $r) {
+            $r->setRelation('version', $f->versions->firstWhere('id', $r->version_id));
+        }
+
+        return $reviews;
+    }
+
+    /**
+     * Which of these reviews the viewer has marked helpful.
+     *
+     * @param Collection<int, Review> $reviews
+     * @return array<int, mixed>
+     */
+    private function helpfulIds(User $actor, Collection $reviews): array
+    {
+        return $actor->exists && $reviews->isNotEmpty()
+            ? $this->db->table('depot_review_helpful')->where('user_id', $actor->id)->whereIn('review_id', $reviews->pluck('id'))->pluck('review_id')->all()
+            : [];
+    }
+
+    /** How many approved files the author has and how often they were downloaded, or null without an author. */
+    private function authorTotals(File $f): ?object
+    {
+        return $f->user ? $this->db->table('depot_files')->where('user_id', $f->user_id)->whereNotNull('approved_at')
+            ->selectRaw('count(*) as files, coalesce(sum(download_count), 0) as downloads')->first() : null;
+    }
+
+    /**
+     * What the viewer can do with the file: the store's access, the can* flags and the update address.
+     *
+     * @return array<string, mixed>
+     */
+    private function abilities(File $f, User $actor): array
+    {
+        return [
             'access' => $f->isProduct() ? $this->access($f, $actor) : null,
             'canEdit' => $f->canEdit($actor),
             'canLinkDiscussion' => $f->canLinkDiscussion($actor),

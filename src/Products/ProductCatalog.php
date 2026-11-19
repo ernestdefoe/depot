@@ -45,6 +45,23 @@ class ProductCatalog
     {
         $file = File::query()->where('product_key', $key)->first() ?? new File(['product_key' => $key, 'source' => 'product', 'wants_thread' => false]);
 
+        $this->fill($file, $data);
+        $this->save($file, $data);
+        $this->screenshots($file, $data);
+
+        $this->counters->file($file);
+        $this->counters->categories();
+
+        return $file;
+    }
+
+    /**
+     * Copies the store's details onto the file; a new file also gets its slug, approval and owner.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function fill(File $file, array $data): void
+    {
         $file->title = mb_substr($data['title'], 0, 120);
         if (! $file->exists) {
             $file->slug = File::freeSlug($data['slug'] ?? $file->title);
@@ -69,7 +86,15 @@ class ProductCatalog
         if (array_key_exists('icon', $data)) {
             $file->icon = File::cleanIcon($data['icon']);
         }
+    }
 
+    /**
+     * Saves the file, choosing a new file's slug again once if another file just took it.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function save(File $file, array $data): void
+    {
         try {
             $file->save();
         } catch (UniqueConstraintViolationException $e) {
@@ -81,7 +106,15 @@ class ProductCatalog
                 throw $e;
             }
         }
+    }
 
+    /**
+     * Adds the store's screenshots to a product that has none yet.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function screenshots(File $file, array $data): void
+    {
         // Screenshots are added once: the store owns them, and re-adding them
         // on every sync would grow the disk forever.
         if (! empty($data['screenshots']) && ! $file->screenshots()->exists()) {
@@ -96,11 +129,6 @@ class ProductCatalog
                 }
             }
         }
-
-        $this->counters->file($file);
-        $this->counters->categories();
-
-        return $file;
     }
 
     /** A release of a product, with its notes as written on GitHub. */
