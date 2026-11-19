@@ -8,6 +8,7 @@ use Flarum\Api\JsonApi;
 use Illuminate\Contracts\Container\Container;
 use Flarum\Api\Resource\DiscussionResource;
 use Flarum\Discussion\Discussion;
+use Flarum\Foundation\ValidationException;
 use Flarum\Http\UrlGenerator;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Psr\Log\LoggerInterface;
@@ -62,7 +63,9 @@ class SupportThread
                 ->forEndpoint('create')
                 ->process(['data' => $data], [], ['actor' => $file->user]);
         } catch (\Throwable $e) {
-            $this->log->warning("[depot] support discussion for {$file->slug} not started: ".$e->getMessage());
+            // A refusal (a tag the forum requires, say) names its fields; anything else, its message.
+            $why = $e instanceof ValidationException ? json_encode($e->getAttributes() + $e->getRelationships()) : $e->getMessage();
+            $this->log->warning("[depot] support discussion for {$file->slug} not started: $why");
 
             return;
         }
