@@ -20,6 +20,14 @@ class ScopeFileVisibility
     /** @param Builder<\ErnestDefoe\Depot\Model\File> $query */
     public function __invoke(User $actor, Builder $query): void
     {
+        // Without the downloads section, no file at all: not in a page's
+        // head, a notification or anything another extension lists.
+        if (! $actor->hasPermission('depot.view')) {
+            $query->whereIn('depot_files.id', []);
+
+            return;
+        }
+
         if ($actor->hasPermission('depot.moderate')) {
             return;
         }

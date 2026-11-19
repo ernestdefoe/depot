@@ -83,6 +83,7 @@ class ReviewResource extends AbstractDatabaseResource
                 ->writableOnCreate()
                 ->requiredOnCreate(),
             Schema\Integer::make('rating')
+                ->requiredOnCreate()
                 ->writable($author)
                 ->rule(fn () => fn ($attribute, $value, $fail) => (int) $value < 1 || (int) $value > 5 ? $fail($this->message('bad_rating')) : null),
             Schema\Str::make('body')

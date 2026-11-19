@@ -139,6 +139,77 @@ class ResourcesTest extends TestCase
     }
 
     #[Test]
+    public function without_the_downloads_section_no_file_is_seen_or_touched(): void
+    {
+        $this->database()->table('group_permission')->where('permission', 'depot.view')->delete();
+
+        $this->assertSame(404, $this->send($this->request('GET', '/api/depot-files/map'))->getStatusCode());
+        $this->assertSame(404, $this->patch(3, 'depot-files', 1, ['isWatching' => true]));
+        $this->assertSame(422, $this->review(3, 1, 4));
+        // Nor in the page's head for a pasted link.
+        $this->assertStringNotContainsString('<title>Map', $this->headOf('/downloads/f/map'));
+    }
+
+    private function headOf(string $path): string
+    {
+        $html = (string) $this->send($this->request('GET', $path))->getBody();
+
+        return (string) preg_replace('#<body.*#s', '', $html);
+    }
+
+    #[Test]
+    public function a_review_needs_a_rating(): void
+    {
+        $this->assertSame(422, $this->send($this->request('POST', '/api/depot-reviews', [
+            'authenticatedAs' => 3,
+            'json' => ['data' => ['type' => 'depot-reviews', 'attributes' => ['fileId' => 1, 'body' => 'No stars.']]],
+        ]))->getStatusCode());
+    }
+
+    #[Test]
+    public function the_update_check_is_shared_by_caches_only_for_guests(): void
+    {
+        $guest = $this->send($this->request('GET', '/api/depot/latest/map'));
+        $member = $this->send($this->request('GET', '/api/depot/latest/map', ['authenticatedAs' => 3]));
+
+        $this->assertStringStartsWith('public', $guest->getHeaderLine('Cache-Control'));
+        $this->assertStringStartsWith('private', $member->getHeaderLine('Cache-Control'));
+    }
+
+    #[Test]
+    public function notifications_about_files_cost_the_same_queries_however_many(): void
+    {
+        $db = $this->app()->getContainer()->make(ConnectionInterface::class);
+        $notify = function (array $ids) use ($db) {
+            foreach ($ids as $id) {
+                $db->table('notifications')->insert(['user_id' => 3, 'from_user_id' => 2, 'type' => 'depotNewVersion', 'subject_id' => $id, 'data' => json_encode(['version' => '1.0']), 'created_at' => Carbon::now()]);
+            }
+        };
+        $count = function () use ($db) {
+            $db->flushQueryLog();
+            $db->enableQueryLog();
+            $response = $this->send($this->request('GET', '/api/notifications', ['authenticatedAs' => 3]));
+            $this->assertSame(200, $response->getStatusCode());
+            $n = count($db->getQueryLog());
+            $db->disableQueryLog();
+
+            return $n;
+        };
+
+        $now = Carbon::now();
+        foreach (range(10, 29) as $id) {
+            $db->table('depot_files')->insert(['id' => $id, 'category_id' => 1, 'user_id' => 2, 'title' => "Map $id", 'slug' => "map-$id", 'source' => 'link', 'approved_at' => $now, 'wants_thread' => 0, 'created_at' => $now]);
+        }
+
+        $notify([10, 11]);
+        $count();
+        $few = $count();
+        $notify(range(12, 29));
+
+        $this->assertLessThanOrEqual($few, $count());
+    }
+
+    #[Test]
     public function the_list_and_a_page_cost_the_same_queries_however_many_files(): void
     {
         $db = $this->app()->getContainer()->make(ConnectionInterface::class);

@@ -125,8 +125,11 @@ class FileResource extends AbstractDatabaseResource
 
     public function fields(): array
     {
+        // Elsewhere (a notification's subject, say) a file is its title and
+        // slug alone: the card is for Depot's own list and page.
         $card = fn (string $key) => Schema\Attribute::make($key)
-            ->get(fn (File $f) => $this->presenter->cardOf($f)[$key]);
+            ->visible(fn (File $f, Context $context) => in_array($key, ['slug', 'title'], true) || $context->collection instanceof self)
+            ->get(fn (File $f) => in_array($key, ['slug', 'title'], true) ? $f->{$key} : $this->presenter->cardOf($f)[$key]);
 
         $page = fn (string $key) => Schema\Attribute::make($key)
             ->visible(fn (File $f, Context $context) => ! $context->listing())

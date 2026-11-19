@@ -39,6 +39,11 @@ class LatestController implements RequestHandlerInterface
             'size' => $v ? (int) $v->size : null,
             'url' => $v ? $this->url->to('forum')->route('depot.download', ['id' => $v->id]) : null,
             'page' => $this->url->to('forum')->route('depot.file', ['slug' => $file->slug]),
-        ], 200, ['Cache-Control' => 'public, max-age=300', 'Access-Control-Allow-Origin' => '*']);
+        ], 200, [
+            // A guest's answer is everyone's, so caches may share it; a
+            // member's may include files only they can open.
+            'Cache-Control' => ($actor->exists ? 'private' : 'public').', max-age=300',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
     }
 }
