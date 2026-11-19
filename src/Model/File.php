@@ -252,6 +252,18 @@ class File extends AbstractModel
     }
 
     /**
+     * Files this person may open: the old name of whereVisibleTo(), which
+     * other extensions call (Testimonials, Casefile). Kept so they keep
+     * working until each has moved to whereVisibleTo().
+     *
+     * @param Builder<File> $query
+     */
+    public function scopeVisibleTo(Builder $query, User $actor): void
+    {
+        $query->whereVisibleTo($actor);
+    }
+
+    /**
      * Approved files in categories this person cannot open — advertised as a
      * locked card. The weaker claim: a title and a count are advertising; a
      * description, a screenshot and a download are not.
