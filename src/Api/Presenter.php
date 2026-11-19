@@ -10,8 +10,8 @@ use ErnestDefoe\Depot\Model\Screenshot;
 use ErnestDefoe\Depot\Model\Version;
 use ErnestDefoe\Depot\Service\Paywall;
 use ErnestDefoe\Depot\Storage\Store;
+use ErnestDefoe\Depot\Tags\Tags;
 use Flarum\Discussion\Discussion;
-use Flarum\Extension\ExtensionManager;
 use Flarum\Http\UrlGenerator;
 use Flarum\User\User;
 use Illuminate\Contracts\Container\Container;
@@ -33,9 +33,9 @@ class Presenter
         private Store $store,
         private UrlGenerator $url,
         private ConnectionInterface $db,
-        private ExtensionManager $extensions,
         private Paywall $paywall,
         private Container $container,
+        private Tags $tags,
     ) {
     }
 
@@ -171,9 +171,11 @@ class Presenter
      */
     public function full(File $f, User $actor, Collection $related): array
     {
-        $f->loadMissing(['versions', 'screenshots']);
-        // The latest version is one of the versions just loaded.
-        $f->setRelation('latest', $f->versions->firstWhere('id', $f->latest_version_id));
+        // The newest 100 versions: the history a page can usefully show.
+        $f->load(['versions' => fn ($q) => $q->take(100)]);
+        $f->loadMissing('screenshots');
+        // The latest version is nearly always one of those just loaded.
+        $f->setRelation('latest', $f->versions->firstWhere('id', $f->latest_version_id) ?? $f->latest()->first());
 
         $all = (new Collection([$f]))->concat($related);
         $this->prime($all);
@@ -300,20 +302,12 @@ class Presenter
             return null;
         }
 
-        // A primary tag first. Asked only when flarum/tags is on; its tables
-        // may exist while the extension is off.
-        $tag = null;
-        if ($this->extensions->isEnabled('flarum-tags')) {
-            $t = $d->belongsToMany(\Flarum\Tags\Tag::class, 'discussion_tag')->orderByRaw('parent_id is not null')->first();
-            $tag = $t ? ['name' => $t->name, 'color' => $t->color, 'slug' => $t->slug] : null;
-        }
-
         return [
             'id' => $d->id,
             'title' => $d->title,
             'replies' => max(0, (int) $d->comment_count - 1),
             'url' => $this->url->to('forum')->route('discussion', ['id' => $d->id.($d->slug ? '-'.$d->slug : '')]),
-            'tag' => $tag,
+            'tag' => $this->tags->primary($d),
         ];
     }
 

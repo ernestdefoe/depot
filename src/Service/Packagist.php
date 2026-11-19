@@ -123,14 +123,15 @@ class Packagist
 
         $labels = $daily['labels'] ?? [];
         $values = array_values($daily['values'] ?? [])[0] ?? [];
+        $rows = [];
         foreach ($labels as $i => $day) {
-            if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $day)) {
-                continue;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $day)) {
+                $rows[] = ['file_id' => $file->id, 'day' => $day, 'count' => max(0, (int) ($values[$i] ?? 0))];
             }
-            $this->db->table('depot_download_days')->updateOrInsert(
-                ['file_id' => $file->id, 'day' => $day],
-                ['count' => max(0, (int) ($values[$i] ?? 0))],
-            );
+        }
+        // The month's days in one statement.
+        if ($rows) {
+            $this->db->table('depot_download_days')->upsert($rows, ['file_id', 'day'], ['count']);
         }
 
         $this->counters->file($file);

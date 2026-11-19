@@ -16,6 +16,7 @@ use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Notification\FileApproved;
 use ErnestDefoe\Depot\Notification\NewVersion;
 use ErnestDefoe\Depot\Storage\Store;
+use ErnestDefoe\Depot\Tags\TagsProvider;
 use Flarum\Api\Context;
 use Flarum\Api\Resource\ForumResource;
 use Flarum\Api\Schema;
@@ -141,7 +142,13 @@ return [
         ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => max(1, (int) $v))
         ->serializeToForum('depotSupportThread', 'ernestdefoe-depot.support_thread', fn ($v) => $v !== '0'),
 
-    // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and File::canDownload.
+    // Tags for support discussions, only where flarum/tags runs.
+    (new Extend\Conditional())
+        ->whenExtensionEnabled('flarum-tags', fn () => [
+            (new Extend\ServiceProvider())->register(TagsProvider::class),
+        ]),
+
+    // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and Service\Paywall.
     (new Extend\Conditional())
         ->whenExtensionEnabled('ernestdefoe-kiosk', fn () => [
             // Uploaders sell their own files too, where the installed Kiosk has member sellers.

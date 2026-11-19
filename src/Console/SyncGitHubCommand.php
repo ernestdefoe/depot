@@ -2,13 +2,13 @@
 
 namespace ErnestDefoe\Depot\Console;
 
+use ErnestDefoe\Depot\Job\NotifyWatchers;
 use ErnestDefoe\Depot\Model\File;
-use ErnestDefoe\Depot\Notification\NewVersion;
 use ErnestDefoe\Depot\Service\GitHub;
 use ErnestDefoe\Depot\Service\Packagist;
 use Flarum\Console\AbstractCommand;
-use Flarum\Notification\NotificationSyncer;
 use Flarum\Settings\SettingsRepositoryInterface;
+use Illuminate\Contracts\Queue\Queue;
 
 /**
  * Hourly: look for new releases on the files linked to GitHub, oldest
@@ -16,7 +16,7 @@ use Flarum\Settings\SettingsRepositoryInterface;
  */
 class SyncGitHubCommand extends AbstractCommand
 {
-    public function __construct(private GitHub $github, private Packagist $packagist, private NotificationSyncer $notifications, private SettingsRepositoryInterface $settings)
+    public function __construct(private GitHub $github, private Packagist $packagist, private Queue $queue, private SettingsRepositoryInterface $settings)
     {
         parent::__construct();
     }
@@ -26,8 +26,23 @@ class SyncGitHubCommand extends AbstractCommand
         $this->setName('depot:sync-github')->setDescription('Import new GitHub releases as Depot versions, and refresh Packagist install counts');
     }
 
+    /**
+     * Seconds one run may spend calling out. Each pass picks the files checked
+     * longest ago, so whatever a slow run leaves is first next hour.
+     */
+    private const BUDGET = 300;
+
+    private float $started = 0;
+
+    private function overBudget(): bool
+    {
+        return microtime(true) - $this->started > self::BUDGET;
+    }
+
     protected function fire(): int
     {
+        $this->started = microtime(true);
+
         if ($this->settings->get('ernestdefoe-depot.github_sync') === '0') {
             $this->info('GitHub sync is switched off.');
 
@@ -40,6 +55,9 @@ class SyncGitHubCommand extends AbstractCommand
             ->where(fn ($q) => $q->whereNull('stats_synced_at')->orWhere('stats_synced_at', '<', \Carbon\Carbon::now()->subDay()))
             ->take(Packagist::PER_RUN)->get();
         foreach ($unknown as $file) {
+            if ($this->overBudget()) {
+                break;
+            }
             if ($package = $this->packagist->detect((string) $file->repo)) {
                 $this->packagist->adopt($file, $package);
             } else {
@@ -53,6 +71,9 @@ class SyncGitHubCommand extends AbstractCommand
         $packages = File::query()->whereNotNull('package')->whereNotNull('approved_at')
             ->orderByRaw('stats_synced_at is not null')->orderBy('stats_synced_at')->take(Packagist::PER_RUN)->get();
         foreach ($packages as $file) {
+            if ($this->overBudget()) {
+                break;
+            }
             $this->packagist->refresh($file);
         }
         $this->info("Packagist: {$packages->count()} packages refreshed.");
@@ -63,9 +84,14 @@ class SyncGitHubCommand extends AbstractCommand
             ->orderByRaw('latest_version_id is not null')->orderByRaw('synced_at is not null')->orderBy('synced_at')->take(GitHub::PER_RUN)->get();
 
         foreach ($files as $file) {
+            if ($this->github->limited() || $this->overBudget()) {
+                $this->info('GitHub: stopping early, the rest wait for the next run.');
+                break;
+            }
+
             foreach ($this->github->sync($file) as $version) {
                 $this->info("{$file->slug}: {$version->version}");
-                $this->notifications->sync(new NewVersion($version), $file->audience()->get()->all());
+                $this->queue->push(new NotifyWatchers($version->id));
             }
         }
 

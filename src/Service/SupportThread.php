@@ -4,8 +4,8 @@ namespace ErnestDefoe\Depot\Service;
 
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Model\File;
+use ErnestDefoe\Depot\Tags\Tags;
 use Flarum\Discussion\Discussion;
-use Flarum\Extension\ExtensionManager;
 use Flarum\Foundation\DispatchEventsTrait;
 use Flarum\Post\Event\Posted;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -29,7 +29,7 @@ class SupportThread
         private UrlGenerator $url,
         private TranslatorInterface $translator,
         private SettingsRepositoryInterface $settings,
-        private ExtensionManager $extensions,
+        private Tags $tags,
         protected Dispatcher $events,
     ) {
     }
@@ -78,9 +78,8 @@ class SupportThread
         $discussion->refreshParticipantCount();
         $discussion->save();
 
-        if ($file->thread_tag_id && $this->extensions->isEnabled('flarum-tags')) {
-            $discussion->belongsToMany(\Flarum\Tags\Tag::class, 'discussion_tag')->sync([$file->thread_tag_id]);
-            $discussion->unsetRelation('tags');
+        if ($file->thread_tag_id) {
+            $this->tags->attach($discussion, [$file->thread_tag_id]);
         }
 
         // The events a discussion started through the API would fire, so tag

@@ -5,12 +5,12 @@ namespace ErnestDefoe\Depot\Api\Controller;
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Api\Concerns;
 use ErnestDefoe\Depot\Api\Validates;
-use ErnestDefoe\Depot\Notification\NewVersion;
+use ErnestDefoe\Depot\Job\NotifyWatchers;
 use ErnestDefoe\Depot\Service\Changelog;
 use ErnestDefoe\Depot\Service\Counters;
+use ErnestDefoe\Depot\Service\UploadLimit;
 use ErnestDefoe\Depot\Storage\Store;
-use Flarum\Notification\NotificationSyncer;
-use Flarum\Settings\SettingsRepositoryInterface;
+use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -29,8 +29,8 @@ class SaveVersionController implements RequestHandlerInterface
     public function __construct(
         private Store $store,
         private Counters $counters,
-        private NotificationSyncer $notifications,
-        private SettingsRepositoryInterface $settings,
+        private Queue $queue,
+        private UploadLimit $limit,
         private TranslatorInterface $translator,
     ) {
     }
@@ -42,12 +42,7 @@ class SaveVersionController implements RequestHandlerInterface
         $in = $this->input($request);
 
         // Versions count against the same hourly limit as files, per file.
-        if (! $actor->hasPermission('depot.moderate')) {
-            $limit = max(1, (int) $this->settings->get('ernestdefoe-depot.uploads_per_hour'));
-            if ($file->versions()->where('created_at', '>', \Carbon\Carbon::now()->subHour())->count() >= $limit) {
-                throw new \Flarum\Post\Exception\FloodingException();
-            }
-        }
+        $this->limit->assertVersions($actor, $file);
 
         $number = mb_substr(trim((string) Arr::get($in, 'version', '')), 0, 40);
         if ($number === '') {
@@ -70,7 +65,7 @@ class SaveVersionController implements RequestHandlerInterface
         $upload = $request->getUploadedFiles()['file'] ?? null;
         if ($file->source === 'link') {
             $link = trim((string) Arr::get($in, 'link', ''));
-            if (! preg_match('#^https://[^\s/$.?\#].[^\s]*$#i', $link)) {
+            if (! preg_match(UploadLimit::LINK, $link)) {
                 $this->fail('link', 'bad_link');
             }
             $attrs['url'] = $link;
@@ -90,7 +85,7 @@ class SaveVersionController implements RequestHandlerInterface
 
         // Watchers hear about it once the file is public, never before.
         if ($file->approved_at) {
-            $this->notifications->sync(new NewVersion($version), $file->audience()->where('users.id', '!=', $actor->id)->get()->all());
+            $this->queue->push(new NotifyWatchers($version->id, $actor->id));
         }
 
         return new JsonResponse(['id' => $version->id], 201);

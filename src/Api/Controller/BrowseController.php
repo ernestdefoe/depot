@@ -66,15 +66,16 @@ class BrowseController implements RequestHandlerInterface
         // The stored JSON contains the value exactly as json_encode writes it,
         // quotes included, so a LIKE on that text matches whole entries only.
         // Not whereJsonContains: on SQLite, Laravel prefixes json_each() with
-        // the table prefix and every prefixed forum gets a 500.
+        // the table prefix and every prefixed forum gets a 500. Like the title
+        // search (File::scopeMatching), it reads only approved files a
+        // catalogue of thousands holds, a page at a time.
         if ($compat !== '') {
             $needle = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], json_encode($compat));
             $query->where('compat', 'like', '%'.$needle.'%');
         }
 
         if ($term !== '') {
-            $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $term).'%';
-            $query->where(fn ($q) => $q->where('title', 'like', $like)->orWhere('tagline', 'like', $like));
+            $query->matching($term, tagline: true);
         }
 
         match ($sort) {
@@ -119,6 +120,8 @@ class BrowseController implements RequestHandlerInterface
 
         $values = File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')
             ->whereIn('category_id', $category->withChildren())
+            // The 500 most recent are plenty to find the newest 8 versions.
+            ->orderByDesc('released_at')->take(500)
             ->pluck('compat')->flatten()->filter()->unique()->values()->all();
 
         usort($values, fn ($a, $b) => version_compare((string) $b, (string) $a));

@@ -202,6 +202,26 @@ class File extends AbstractModel
         return $slug;
     }
 
+    /**
+     * Files whose title (or tagline, with $tagline) contains the words,
+     * ignoring case on every database. A contains-search scans the rows it
+     * is given: Depot's catalogue is thousands of files at most, and every
+     * caller narrows and pages it first, so a word index would cost more
+     * than it saves.
+     *
+     * @param Builder<File> $query
+     */
+    public function scopeMatching(Builder $query, string $term, bool $tagline = false): void
+    {
+        $like = '%'.addcslashes($term, '%_\\').'%';
+        $query->where(function (Builder $q) use ($like, $tagline) {
+            $q->whereLike('depot_files.title', $like);
+            if ($tagline) {
+                $q->orWhereLike('depot_files.tagline', $like);
+            }
+        });
+    }
+
     public function isProduct(): bool
     {
         return $this->source === 'product';

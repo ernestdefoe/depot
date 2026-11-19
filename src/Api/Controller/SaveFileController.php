@@ -12,9 +12,9 @@ use ErnestDefoe\Depot\Service\Changelog;
 use ErnestDefoe\Depot\Service\Counters;
 use ErnestDefoe\Depot\Service\GitHub;
 use ErnestDefoe\Depot\Service\SupportThread;
+use ErnestDefoe\Depot\Service\UploadLimit;
 use ErnestDefoe\Depot\Storage\Store;
-use Flarum\Post\Exception\FloodingException;
-use Flarum\Settings\SettingsRepositoryInterface;
+use ErnestDefoe\Depot\Tags\Tags;
 use Flarum\User\User;
 use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Database\ConnectionInterface;
@@ -46,8 +46,9 @@ class SaveFileController implements RequestHandlerInterface
         private Queue $queue,
         private SupportThread $thread,
         private ConnectionInterface $db,
-        private SettingsRepositoryInterface $settings,
+        private UploadLimit $limit,
         private TranslatorInterface $translator,
+        private Tags $tags,
     ) {
     }
 
@@ -62,7 +63,7 @@ class SaveFileController implements RequestHandlerInterface
         if ($creating) {
             $actor->assertRegistered();
             $actor->assertPermission($actor->hasPermission('depot.upload'));
-            $this->throttle($actor);
+            $this->limit->assertFiles($actor);
             $file = new File(['user_id' => $actor->id]);
         } else {
             $file = $this->editableFile($actor, $id);
@@ -89,7 +90,7 @@ class SaveFileController implements RequestHandlerInterface
         if ($creating && $source === 'upload' && ! $upload instanceof UploadedFileInterface) {
             $this->fail('file', 'no_file');
         }
-        if ($creating && $source === 'link' && ! preg_match('#^https://[^\s/$.?\#].[^\s]*$#i', $link)) {
+        if ($creating && $source === 'link' && ! preg_match(UploadLimit::LINK, $link)) {
             $this->fail('link', 'bad_link');
         }
 
@@ -134,23 +135,6 @@ class SaveFileController implements RequestHandlerInterface
     }
 
     private const SHOT_BYTES = 20 * 1048576;
-
-    /**
-     * Members may create this many files an hour (setting, default 10);
-     * moderators are not counted. Enough for anyone publishing a set, too few
-     * to fill a disk or bury the approval queue.
-     */
-    private function throttle(User $actor): void
-    {
-        if ($actor->hasPermission('depot.moderate')) {
-            return;
-        }
-        $limit = max(1, (int) $this->settings->get('ernestdefoe-depot.uploads_per_hour'));
-        $recent = File::query()->where('user_id', $actor->id)->where('created_at', '>', \Carbon\Carbon::now()->subHour())->count();
-        if ($recent >= $limit) {
-            throw new FloodingException();
-        }
-    }
 
     private function write(File $file, bool $creating, array $in, string $source, ?UploadedFileInterface $upload, string $link, array $shots): void
     {
@@ -231,12 +215,8 @@ class SaveFileController implements RequestHandlerInterface
             $file->wants_thread = filter_var(Arr::get($in, 'thread', true), FILTER_VALIDATE_BOOL);
             $file->thread_opening = mb_substr(trim((string) Arr::get($in, 'threadOpening', '')), 0, 5000) ?: null;
             $tag = (int) Arr::get($in, 'threadTag', 0);
-            if ($file->wants_thread && $tag && class_exists(\Flarum\Tags\Tag::class)) {
-                $model = \Flarum\Tags\Tag::query()->find($tag);
-                if (! $model || ! $actor->can('startDiscussion', $model)) {
-                    $this->fail('threadTag', 'bad_tag');
-                }
-                $file->thread_tag_id = $model->id;
+            if ($file->wants_thread && $tag) {
+                $file->thread_tag_id = $this->tags->startable($tag, $actor) ?? $this->fail('threadTag', 'bad_tag');
             }
         }
 

@@ -34,10 +34,10 @@ class DeleteFileController implements RequestHandlerInterface
 
         $file->delete();
 
-        foreach (array_unique($paths) as $path) {
-            if (! Version::query()->where('path', $path)->exists()) {
-                $this->store->files()->delete($path);
-            }
+        // Stored by content, so another file may hold the same bytes: keep those.
+        $shared = Version::query()->whereIn('path', $paths)->pluck('path')->all();
+        foreach (array_diff(array_unique($paths), $shared) as $path) {
+            $this->store->files()->delete($path);
         }
         foreach ($shots as $shot) {
             $this->store->deleteScreenshot($shot);

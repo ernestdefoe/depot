@@ -7,6 +7,7 @@ use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Model\Version;
 use Flarum\Settings\SettingsRepositoryInterface;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 
@@ -21,6 +22,9 @@ use Psr\Log\LoggerInterface;
 class GitHub
 {
     public const PER_RUN = 30;
+
+    /** Set when GitHub says the quota is spent: the rest of the run is skipped. */
+    private bool $limited = false;
 
     public function __construct(
         private SettingsRepositoryInterface $settings,
@@ -39,7 +43,7 @@ class GitHub
     /** @return Version[] the versions added */
     public function sync(File $file, ?int $limit = null): array
     {
-        if ($file->source !== 'github' || ! $file->repo || ! self::validRepo($file->repo)) {
+        if ($this->limited || $file->source !== 'github' || ! $file->repo || ! self::validRepo($file->repo)) {
             return [];
         }
 
@@ -65,12 +69,16 @@ class GitHub
             $response = $this->get("repos/{$file->repo}/releases", ['query' => ['per_page' => $limit]]);
             $releases = json_decode((string) $response->getBody(), true) ?: [];
         } catch (\Throwable $e) {
+            // Rate-limited: every later call this run would fail the same way.
+            $status = $e instanceof RequestException ? $e->getResponse()?->getStatusCode() : null;
+            $this->limited = in_array($status, [403, 429], true);
             $this->log->info("[depot] GitHub sync skipped for {$file->repo}: ".$e->getMessage());
 
             return [];
         }
 
         $known = $file->versions()->whereNotNull('github_release_id')->pluck('github_release_id')->all();
+        $numbers = $file->versions()->pluck('version')->all();
         $added = [];
 
         // Oldest first, so the newest release ends up as the latest version.
@@ -83,9 +91,10 @@ class GitHub
             $digest = $asset['digest'] ?? null;
             $version = mb_substr(ltrim((string) ($release['tag_name'] ?? ''), 'vV'), 0, 40);
 
-            if ($version === '' || $file->versions()->where('version', $version)->exists()) {
+            if ($version === '' || in_array($version, $numbers, true)) {
                 continue;
             }
+            $numbers[] = $version;
 
             $added[] = $file->versions()->create([
                 'version' => $version,
@@ -117,6 +126,12 @@ class GitHub
         }
 
         return $added;
+    }
+
+    /** Whether GitHub refused for the quota during this run. */
+    public function limited(): bool
+    {
+        return $this->limited;
     }
 
     /** The extension icon from the repository's composer.json, for a file Packagist doesn't know. */

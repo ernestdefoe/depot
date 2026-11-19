@@ -37,7 +37,7 @@ class FileUnlock implements UnlockType
         return File::query()
             ->where('source', File::SELLABLE)
             ->whereNotNull('approved_at')
-            ->when($query !== '', fn ($q) => $q->where('title', 'like', '%'.addcslashes($query, '%_\\').'%'))
+            ->when($query !== '', fn ($q) => $q->matching($query))
             ->orderBy('title')
             ->limit($limit)
             ->get(['id', 'title'])
