@@ -23,6 +23,23 @@ export const api = {
     }),
 };
 
+/** Watch or stop watching a file, from any of the places that offer it. */
+export const toggleWatch = (file) =>
+  api.post(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
+    file.watching = r.watching;
+    file.watchers = r.watchers;
+    m.redraw();
+    return r;
+  });
+
+/** Copy text, then call `done` (to show a tick). */
+export function copyText(text, done) {
+  if (!navigator.clipboard) return;
+  navigator.clipboard.writeText(text).then(done, () => {
+    /* The browser refused the clipboard: the text stays on screen to copy by hand. */
+  });
+}
+
 /** Categories, as last sent by the server. Every page response carries them. */
 export const state = { categories: [], file: null };
 

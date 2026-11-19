@@ -3,7 +3,7 @@ import Modal from 'flarum/common/components/Modal';
 import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
-import { api, bytes } from '../depot-api';
+import { api, bytes, copyText, toggleWatch } from '../depot-api';
 import { t, Cover } from './bits';
 
 const OS = {
@@ -162,13 +162,7 @@ export default class DownloadModal extends Modal {
   }
 
   watch() {
-    const file = this.file;
-    api.post(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
-      file.watching = r.watching;
-      file.watchers = r.watchers;
-      this.attrs.onwatch && this.attrs.onwatch(r);
-      m.redraw();
-    });
+    toggleWatch(this.file).then((r) => this.attrs.onwatch && this.attrs.onwatch(r));
   }
 
   copyRow(id, text, small) {
@@ -179,17 +173,13 @@ export default class DownloadModal extends Modal {
           className="Button Button--icon"
           icon={this.copied === id ? 'fas fa-check' : 'far fa-copy'}
           aria-label={t('download.copy')}
-          onclick={() => {
-            if (!navigator.clipboard) return;
-            navigator.clipboard.writeText(text).then(
-              () => {
-                this.copied = id;
-                m.redraw();
-                setTimeout(() => ((this.copied = null), m.redraw()), 1800);
-              },
-              () => {}
-            );
-          }}
+          onclick={() =>
+            copyText(text, () => {
+              this.copied = id;
+              m.redraw();
+              setTimeout(() => ((this.copied = null), m.redraw()), 1800);
+            })
+          }
         />
       </div>
     );

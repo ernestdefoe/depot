@@ -9,7 +9,7 @@ import Icon from 'flarum/common/components/Icon';
 import Tooltip from 'flarum/common/components/Tooltip';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import humanTime from 'flarum/common/helpers/humanTime';
-import { api, state, bytes, number, compact } from '../depot-api';
+import { api, state, bytes, number, compact, copyText, toggleWatch } from '../depot-api';
 import { t, Sparkline, Stars, Avatar, UserChip, CategoryLabels, SourceBadge, Cover, coverStyle, price, PriceBadge } from './bits';
 import DownloadModal, { startDownload } from './DownloadModal';
 import LightboxModal from './LightboxModal';
@@ -991,22 +991,14 @@ export default class FilePage extends Page {
   }
 
   watch(file) {
-    api.post(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
-      file.watching = r.watching;
-      file.watchers = r.watchers;
-      m.redraw();
-    });
+    toggleWatch(file);
   }
 
   copy(text, id = true) {
-    if (!navigator.clipboard) return;
-    navigator.clipboard.writeText(text).then(
-      () => {
-        this.copied = id;
-        m.redraw();
-        setTimeout(() => ((this.copied = false), m.redraw()), 1800);
-      },
-      () => {}
-    );
+    copyText(text, () => {
+      this.copied = id;
+      m.redraw();
+      setTimeout(() => ((this.copied = false), m.redraw()), 1800);
+    });
   }
 }

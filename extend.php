@@ -94,12 +94,12 @@ return [
         ->post('/depot/reviews/{id:[0-9]+}/reply', 'depot.reviews.reply', Controller\ReplyReviewController::class)
         ->post('/depot/reviews/{id:[0-9]+}/helpful', 'depot.reviews.helpful', Controller\HelpfulReviewController::class)
         ->delete('/depot/screenshots/{id:[0-9]+}', 'depot.screenshots.delete', Controller\DeleteScreenshotController::class)
-        // Administration: the controller asserts admin itself.
-        ->get('/depot/categories', 'depot.categories', Controller\CategoriesController::class)
-        ->post('/depot/categories', 'depot.categories.create', Controller\CategoriesController::class)
-        ->post('/depot/categories/order', 'depot.categories.order', Controller\CategoriesController::class)
-        ->patch('/depot/categories/{id:[0-9]+}', 'depot.categories.update', Controller\CategoriesController::class)
-        ->delete('/depot/categories/{id:[0-9]+}', 'depot.categories.delete', Controller\CategoriesController::class),
+        // Administration: each controller asserts admin itself.
+        ->get('/depot/categories', 'depot.categories', Controller\ListCategoriesController::class)
+        ->post('/depot/categories', 'depot.categories.create', Controller\SaveCategoryController::class)
+        ->post('/depot/categories/order', 'depot.categories.order', Controller\OrderCategoriesController::class)
+        ->patch('/depot/categories/{id:[0-9]+}', 'depot.categories.update', Controller\SaveCategoryController::class)
+        ->delete('/depot/categories/{id:[0-9]+}', 'depot.categories.delete', Controller\DeleteCategoryController::class),
 
     (new Extend\ApiResource(ForumResource::class))->fields(ForumFields::class),
 
