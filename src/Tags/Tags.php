@@ -18,9 +18,10 @@ class Tags
         return null;
     }
 
-    /** @param int[] $ids */
-    public function attach(Discussion $discussion, array $ids): void
+    /** Whether a discussion can carry tags here. */
+    public function enabled(): bool
     {
+        return false;
     }
 
     /** @return array{name: string, color: string|null, slug: string}|null the discussion's primary tag */

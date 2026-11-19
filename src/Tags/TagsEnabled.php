@@ -16,10 +16,9 @@ class TagsEnabled extends Tags
         return $tag && $actor->can('startDiscussion', $tag) ? $tag->id : null;
     }
 
-    public function attach(Discussion $discussion, array $ids): void
+    public function enabled(): bool
     {
-        $discussion->belongsToMany(Tag::class, 'discussion_tag')->sync($ids);
-        $discussion->unsetRelation('tags');
+        return true;
     }
 
     public function primary(Discussion $discussion): ?array
