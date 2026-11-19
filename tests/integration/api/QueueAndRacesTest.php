@@ -191,8 +191,8 @@ class QueueAndRacesTest extends ConsoleTestCase
     #[Test]
     public function a_bad_row_in_a_reorder_changes_nothing(): void
     {
-        // Tools under Vault, and Vault under Maps: three levels.
-        $response = $this->call('POST', '/api/depot/categories/order', 1, ['order' => [['id' => 1], ['id' => 2, 'parent' => 1], ['id' => 3, 'parent' => 2]]]);
+        // Two good rows first, then one that is its own parent.
+        $response = $this->call('POST', '/api/depot/categories/order', 1, ['order' => [['id' => 3], ['id' => 1], ['id' => 2, 'parent' => 2]]]);
         $this->assertSame(422, $response->getStatusCode());
 
         $this->assertSame([0, 1, 2], $this->database()->table('depot_categories')->orderBy('id')->pluck('position')->map(fn ($p) => (int) $p)->all());
