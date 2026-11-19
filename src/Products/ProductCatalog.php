@@ -152,7 +152,10 @@ class ProductCatalog
     /** Remove products the store no longer sells. @param string[] $keep */
     public function prune(string $prefix, array $keep): int
     {
-        $gone = File::query()->where('product_key', 'like', str_replace(['%', '_'], ['\%', '\_'], $prefix).'%')->whereNotIn('product_key', $keep)->get();
+        // The store's own products, matched in PHP: a store lists dozens, and
+        // a LIKE prefix would need escaping no two databases agree on.
+        $gone = File::query()->whereNotNull('product_key')->whereNotIn('product_key', $keep)->get()
+            ->filter(fn (File $f) => str_starts_with((string) $f->product_key, $prefix));
         foreach ($gone as $file) {
             foreach ($file->screenshots()->pluck('path') as $path) {
                 $this->store->deleteScreenshot($path);

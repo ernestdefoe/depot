@@ -264,18 +264,6 @@ class File extends AbstractModel
     }
 
     /**
-     * Approved files in categories this person cannot open — advertised as a
-     * locked card. The weaker claim: a title and a count are advertising; a
-     * description, a screenshot and a download are not.
-     *
-     * @param Builder<File> $query
-     */
-    public function scopeLockedTeasersFor(Builder $query, User $actor): void
-    {
-        $query->whereNotNull('depot_files.approved_at')->whereIn('depot_files.category_id', Category::lockedFor($actor) ?: [0]);
-    }
-
-    /**
      * A Flarum extension icon (composer.json `extra.flarum-extension.icon`),
      * kept only if every part is plainly what it claims to be: Font Awesome
      * class names and CSS colours, nothing that could carry anything else.

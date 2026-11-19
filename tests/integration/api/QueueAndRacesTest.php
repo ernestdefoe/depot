@@ -223,7 +223,7 @@ class QueueAndRacesTest extends ConsoleTestCase
             $response = $this->call('POST', '/api/depot/categories/order', 1, ['order' => $order]);
             $writes = count(array_filter($db->getQueryLog(), fn ($q) => str_starts_with(strtolower($q['query']), 'update')));
             $db->disableQueryLog();
-            $this->assertSame(200, $response->getStatusCode());
+            $this->assertSame(204, $response->getStatusCode());
 
             return $writes;
         };

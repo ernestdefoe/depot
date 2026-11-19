@@ -2,13 +2,13 @@
 
 namespace ErnestDefoe\Depot\Api\Controller;
 
-use ErnestDefoe\Depot\Api\CategoryList;
 use ErnestDefoe\Depot\Api\Concerns;
 use ErnestDefoe\Depot\Api\Validates;
 use ErnestDefoe\Depot\Model\Category;
 use Flarum\Http\RequestUtil;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Arr;
+use Laminas\Diactoros\Response\EmptyResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -17,14 +17,14 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 /**
  * The admin page's drag-and-drop order: every category's position and
  * parent, checked first and then written together, so a bad row changes
- * nothing.
+ * nothing. The admin page reads the result back from CategoryResource.
  */
 class OrderCategoriesController implements RequestHandlerInterface
 {
     use Concerns;
     use Validates;
 
-    public function __construct(private CategoryList $list, private ConnectionInterface $db, private TranslatorInterface $translator)
+    public function __construct(private ConnectionInterface $db, private TranslatorInterface $translator)
     {
     }
 
@@ -58,7 +58,7 @@ class OrderCategoriesController implements RequestHandlerInterface
         });
         Category::forget();
 
-        return $this->list->response();
+        return new EmptyResponse(204);
     }
 
     /** @param array<int, array{position: int, parent: int|null}> $rows */

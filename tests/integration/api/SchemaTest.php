@@ -41,4 +41,20 @@ class SchemaTest extends TestCase
 
         $this->assertGreaterThan(15, $checked);
     }
+
+    #[Test]
+    public function the_index_rename_can_be_rolled_back_and_run_again(): void
+    {
+        $this->extension('ernestdefoe-depot');
+        $schema = $this->app()->getContainer()->make(ConnectionInterface::class)->getSchemaBuilder();
+        $migration = require __DIR__.'/../../../migrations/2026_11_14_000016_rename_hand_named_indexes.php';
+
+        $migration['down']($schema);
+        $this->assertTrue($schema->hasIndex('depot_files', 'depot_files_browse'));
+
+        $migration['up']($schema);
+        $this->assertFalse($schema->hasIndex('depot_files', 'depot_files_browse'));
+        $this->assertFalse($schema->hasIndex('depot_download_log', 'depot_download_log_seen'));
+        $this->assertTrue($schema->hasIndex('depot_files', ['category_id', 'approved_at', 'released_at']));
+    }
 }

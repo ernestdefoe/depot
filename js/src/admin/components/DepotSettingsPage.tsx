@@ -151,13 +151,14 @@ export default class DepotSettingsPage extends ExtensionPage {
     const bySlug = Object.fromEntries(rest.map((c) => [c.slug, c.id]));
     // The whole tree in one request (a custom endpoint: JSON:API has no bulk update).
     app
-      .request<DepotCategoryList>({
+      .request<void>({
         method: 'POST',
         url: `${app.forum.attribute('apiUrl')}/depot/categories/order`,
         body: { order: rest.map((c) => ({ id: c.id, parent: c.parent ? bySlug[c.parent] : null })) },
       })
+      // Read back either way: the server's counts, or the order as it was.
       .then(
-        (r) => this.setCategories(r),
+        () => this.reload(),
         () => this.reload()
       );
   }

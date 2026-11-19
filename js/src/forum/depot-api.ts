@@ -12,9 +12,6 @@ import type { DepotBrowse, DepotCard, DepotCategory, DepotFile, DepotPriceTier }
 const url = (path: string) => `${app.forum.attribute('apiUrl')}/depot/${path}`;
 
 export const api = {
-  get: <T = unknown>(path: string, params?: Record<string, unknown>): Promise<T> => app.request<T>({ method: 'GET', url: url(path), params }),
-  post: <T = unknown>(path: string, body?: unknown): Promise<T> => app.request<T>({ method: 'POST', url: url(path), body }),
-  del: <T = unknown>(path: string): Promise<T> => app.request<T>({ method: 'DELETE', url: url(path) }),
   // Multipart: Flarum must not try to JSON-encode the body.
   upload: <T = unknown>(path: string, form: FormData, onprogress?: (fraction: number) => void): Promise<T> =>
     app.request<T>({
@@ -26,7 +23,6 @@ export const api = {
         onprogress && xhr.upload.addEventListener('progress', (e: ProgressEvent) => e.lengthComputable && onprogress(e.loaded / e.total)),
     }),
 };
-
 export { resources };
 
 export interface BrowseParams {

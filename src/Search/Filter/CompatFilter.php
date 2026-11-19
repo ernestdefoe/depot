@@ -14,8 +14,8 @@ use Flarum\Search\ValidateFilterTrait;
  * The stored JSON holds the value exactly as json_encode writes it, quotes
  * included, so a LIKE on that text matches whole entries only. Not
  * whereJsonContains: on SQLite, Laravel prefixes json_each() with the table
- * prefix and every prefixed forum gets a 500. It reads only the files the
- * other filters leave, a page at a time.
+ * prefix and every prefixed forum gets a 500. It reads every file the other
+ * filters leave (a category's approved files: hundreds, not millions).
  *
  * @implements FilterInterface<DatabaseSearchState>
  */

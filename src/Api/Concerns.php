@@ -28,11 +28,6 @@ trait Concerns
         return is_array($body) ? $body : [];
     }
 
-    protected function param(ServerRequestInterface $request, string $key): string
-    {
-        return (string) Arr::get($request->getQueryParams(), $key, '');
-    }
-
     /** A file this person may see, by id, or a 404 — never a 403 that confirms it exists. */
     protected function visibleFile(User $actor, int|string $id): File
     {

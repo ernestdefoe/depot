@@ -384,11 +384,6 @@ class Presenter
         ];
     }
 
-    public function discussionFor(File $f, User $actor): ?array
-    {
-        return $this->discussion($f, $actor);
-    }
-
     /** The support discussion, only for people allowed to see it (a restricted tag, a hidden discussion). */
     private function discussion(File $f, User $actor): ?array
     {
