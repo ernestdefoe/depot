@@ -61,7 +61,8 @@ class Downloads
                 $this->db->table('depot_files')->where('id', $version->file_id)->increment('download_count');
 
                 // One statement, so two first downloads of the day both count.
-                $count = $this->db->getQueryGrammar()->wrap('count');
+                // Qualified: PostgreSQL calls a bare `count` ambiguous in an upsert.
+                $count = $this->db->getQueryGrammar()->wrap('depot_download_days.count');
                 $this->db->table('depot_download_days')->upsert(
                     ['file_id' => $version->file_id, 'day' => Carbon::today()->toDateString(), 'count' => 1],
                     ['file_id', 'day'],
