@@ -6,24 +6,24 @@
 
 use ErnestDefoe\Depot\Access\ScopeFileVisibility;
 use ErnestDefoe\Depot\Api\Controller;
+use ErnestDefoe\Depot\Api\Field\ForumFields;
 use ErnestDefoe\Depot\Api\Resource\FileResource;
 use ErnestDefoe\Depot\Console\PruneCommand;
 use ErnestDefoe\Depot\Console\SyncGitHubCommand;
 use ErnestDefoe\Depot\Content\FileMeta;
 use ErnestDefoe\Depot\Http\DownloadController;
 use ErnestDefoe\Depot\Http\StylesheetController;
+use ErnestDefoe\Depot\Listener\ForgetCategoryTree;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Notification\FileApproved;
 use ErnestDefoe\Depot\Notification\NewVersion;
-use ErnestDefoe\Depot\Storage\Store;
 use ErnestDefoe\Depot\Tags\TagsProvider;
-use Flarum\Api\Context;
 use Flarum\Api\Resource\ForumResource;
-use Flarum\Api\Schema;
 use Flarum\Extend;
 use Flarum\Foundation\Paths;
 use Flarum\Http\UrlGenerator;
 use Illuminate\Console\Scheduling\Event;
+use Illuminate\Queue\Events\JobProcessing;
 
 return [
     (new Extend\Frontend('forum'))
@@ -47,16 +47,18 @@ return [
     (new Extend\View())->namespace('ernestdefoe-depot', __DIR__.'/views'),
 
     /*
-     * Two disks. Files are PRIVATE — under storage/, reachable only through
-     * the download route — and screenshots are public assets. Either can be
+     * Two disks (Store::FILES and Store::MEDIA, written out: extend.php must
+     * not load Depot's classes while a deploy is updating them). Files are
+     * PRIVATE — under storage/, reachable only through the download route —
+     * and screenshots are public assets. Either can be
      * pointed at S3 or R2 by overriding the driver.
      */
     (new Extend\Filesystem())
-        ->disk(Store::FILES, fn (Paths $paths) => [
+        ->disk('depot-files', fn (Paths $paths) => [
             'root' => "$paths->storage/depot",
             'visibility' => 'private',
         ])
-        ->disk(Store::MEDIA, fn (Paths $paths, UrlGenerator $url) => [
+        ->disk('depot-media', fn (Paths $paths, UrlGenerator $url) => [
             'root' => "$paths->public/assets/depot",
             'url' => $url->to('forum')->path('assets/depot'),
             // Explicit: left to the umask, directories come out 0700 and every
@@ -99,14 +101,7 @@ return [
         ->patch('/depot/categories/{id:[0-9]+}', 'depot.categories.update', Controller\CategoriesController::class)
         ->delete('/depot/categories/{id:[0-9]+}', 'depot.categories.delete', Controller\CategoriesController::class),
 
-    // Whether to show the navigation link at all, decided by the server.
-    (new Extend\ApiResource(ForumResource::class))
-        ->fields(fn () => [
-            Schema\Boolean::make('canViewDepot')
-                ->get(fn ($forum, Context $context) => $context->getActor()->hasPermission('depot.view')),
-            Schema\Boolean::make('canUploadToDepot')
-                ->get(fn ($forum, Context $context) => $context->getActor()->hasPermission('depot.upload')),
-        ]),
+    (new Extend\ApiResource(ForumResource::class))->fields(ForumFields::class),
 
     // Who may open a file: Depot's lists and core's notification list both ask this.
     (new Extend\ModelVisibility(File::class))->scope(ScopeFileVisibility::class),
@@ -141,6 +136,8 @@ return [
         ->resetWhen('ernestdefoe-depot.uploads_per_hour', fn ($v) => (int) $v < 1)
         ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => max(1, (int) $v))
         ->serializeToForum('depotSupportThread', 'ernestdefoe-depot.support_thread', fn ($v) => $v !== '0'),
+
+    (new Extend\Event())->listen(JobProcessing::class, ForgetCategoryTree::class),
 
     // Tags for support discussions, only where flarum/tags runs.
     (new Extend\Conditional())

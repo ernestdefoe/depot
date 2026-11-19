@@ -43,12 +43,19 @@ class Category extends AbstractModel
         parent::boot();
 
         // Anything that changes the tree invalidates the per-request copy.
-        $forget = function () {
-            self::$all = null;
-            self::$locked = [];
-        };
-        static::saved($forget);
-        static::deleted($forget);
+        static::saved(fn () => self::forget());
+        static::deleted(fn () => self::forget());
+    }
+
+    /**
+     * Drop the per-request copy. Also called after quiet saves, which fire no
+     * events, and before each queued job, so a long-lived worker never
+     * answers from a tree another process has since changed.
+     */
+    public static function forget(): void
+    {
+        self::$all = null;
+        self::$locked = [];
     }
 
     /** @return BelongsTo<Category, $this> */

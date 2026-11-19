@@ -43,5 +43,6 @@ class Counters
             $category->file_count = (int) ($counts[$category->id] ?? 0);
             $category->saveQuietly();
         }
+        Category::forget();
     }
 }
