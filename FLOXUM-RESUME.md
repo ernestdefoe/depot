@@ -68,7 +68,7 @@ The full findings are in the run-4 JSON. Rerun pre-floxum after A to G and befor
 2. **Testimonials**:
    - Problem: it reads Depot through `File::scopeVisibleTo` and `GET /api/depot/browse` (its picker).
    - 1.0.5 adds a whereVisibleTo/visibleTo fallback; its next wave release moves the picker off `/api/depot/browse`.
-   - Depot's release waits for that version and adds `"conflict": {"ernestdefoe/testimonials": "<that version"}`.
+   - **Testimonials 1.1.0 is released with the depot-files picker** (Command Center, 2026-11-19). Depot's release adds `"conflict": {"ernestdefoe/testimonials": "<1.1.0"}`.
    - **Keep the `File::scopeVisibleTo()` alias for at least one release.** Without it every signed-in page 500'd on dev, about 17:34 to 17:55 UTC on Nov 19.
 3. **Announce scripts** (`~/github/scopes/*-announce/depotlink.php`, copied forward):
    - Problem: they build the removed `LinkDiscussionController`.
