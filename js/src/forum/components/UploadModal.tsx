@@ -81,6 +81,9 @@ export default class UploadModal extends FormModal<IFormModalAttrs> {
     this.dragging = false;
     this.progress = 0;
     this.thread = { on: true, tag: null, opening: '' };
+    // The support discussion starts in a support or help tag, else the first one.
+    const tags = this.tags();
+    if (tags.length) this.thread.tag = (tags.find((x) => /support|help/i.test(x.name)) || tags[0]).id;
   }
 
   className() {
@@ -409,7 +412,6 @@ export default class UploadModal extends FormModal<IFormModalAttrs> {
   support() {
     const tags = this.tags();
     const th = this.thread;
-    if (th.tag === null && tags.length) th.tag = (tags.find((x) => /support|help/i.test(x.name)) || tags[0]).id;
     const chosen = tags.find((x) => x.id === th.tag);
 
     return (

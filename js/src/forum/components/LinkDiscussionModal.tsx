@@ -3,7 +3,7 @@ import type { IFormModalAttrs } from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
 import extractText from 'flarum/common/utils/extractText';
 import type Mithril from 'mithril';
-import { api } from '../depot-api';
+import { resources } from '../depot-api';
 import { t } from './bits';
 import type { DepotFile } from '../types';
 
@@ -64,8 +64,8 @@ export default class LinkDiscussionModal extends FormModal<LinkDiscussionModalAt
 
   save(value: string) {
     this.loading = true;
-    api
-      .post(`files/${this.attrs.file.id}/discussion`, { discussion: value.trim() })
+    resources
+      .update('depot-files', this.attrs.file.id, { linkDiscussion: value.trim() })
       .then(() => {
         this.hide();
         this.attrs.onsave();

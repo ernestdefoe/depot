@@ -102,7 +102,7 @@ export default class VersionModal extends FormModal<VersionModalAttrs> {
           rows="2"
           value={this[key]}
           oninput={(e: Event) => (this[key] = (e.target as HTMLTextAreaElement).value)}
-          placeholder={t('version.lines').toString()}
+          placeholder={extractText(t('version.lines'))}
         />
       </div>
     );
@@ -150,6 +150,7 @@ export default class VersionModal extends FormModal<VersionModalAttrs> {
 
   onsubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (this.loading) return;
     const form = new FormData();
     (['version', 'added', 'changed', 'fixed', 'link'] as const).forEach((k) => form.append(k, this[k]));
     if (this.upload) form.append('file', this.upload);
@@ -164,6 +165,7 @@ export default class VersionModal extends FormModal<VersionModalAttrs> {
         },
         (error: RequestError) => {
           this.loading = false;
+          this.progress = 0;
           this.onerror(error);
         }
       );

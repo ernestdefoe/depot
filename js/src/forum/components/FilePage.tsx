@@ -7,7 +7,7 @@ import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import type Post from 'flarum/common/models/Post';
-import { api, state, compact, copyText, toggleWatch } from '../depot-api';
+import { state, compact, copyText, toggleWatch, showFile, resources } from '../depot-api';
 import { t } from './bits';
 import DownloadModal, { startDownload } from './DownloadModal';
 import type { DepotDiscussion, DepotFile, DepotReview, DepotVersion } from '../types';
@@ -55,7 +55,9 @@ export default class FilePage extends Page<IPageAttrs> {
   }
 
   load() {
-    return api.get<ShownFile>('file', { slug: m.route.param('slug') }).then(
+    // A linked discussion may have changed: its posts load again when the tab is drawn.
+    this.posts = undefined;
+    return showFile(m.route.param('slug')).then(
       (file) => {
         state.categories = file.categories;
         // Shared so Waymark's trail can name the file and its categories.
@@ -102,7 +104,7 @@ export default class FilePage extends Page<IPageAttrs> {
         <Icon name="fas fa-hourglass-half" />
         <span>{t('file.pending')}</span>
         {file.canModerate ? (
-          <Button className="Button Button--small Button--primary" onclick={() => this.act(`files/${file.id}/approve`)}>
+          <Button className="Button Button--small Button--primary" onclick={() => this.act({ isApproved: true })}>
             {t('file.approve')}
           </Button>
         ) : null}
@@ -143,8 +145,9 @@ export default class FilePage extends Page<IPageAttrs> {
     );
   }
 
-  act(path: string, body?: object) {
-    return api.post(path, body).then(() => this.load());
+  /** Change the file (approve, feature, sell) and show it again. */
+  act(attributes: Record<string, unknown>) {
+    return resources.update('depot-files', this.file!.id, attributes).then(() => this.load());
   }
 
   tabCount(file: DepotFile, tab: Tab) {
@@ -179,7 +182,12 @@ export default class FilePage extends Page<IPageAttrs> {
   remove(file: DepotFile) {
     // The same confirm Flarum itself uses before deleting a discussion.
     if (!confirm(extractText(t('file.delete_confirm', { title: file.title })))) return;
-    api.del(`files/${file.id}`).then(() => m.route.set(app.route('depot.index')));
+    resources.remove('depot-files', file.id).then(
+      () => m.route.set(app.route('depot.index')),
+      () => {
+        /* Flarum has shown the error; the file stays on screen. */
+      }
+    );
   }
 
   // ---------------------------------------------------------------- overview
@@ -208,7 +216,12 @@ export default class FilePage extends Page<IPageAttrs> {
 
   removeVersion(v: DepotVersion) {
     if (!confirm(extractText(t('file.delete_version_confirm', { version: v.version })))) return;
-    api.del(`versions/${v.id}`).then(() => this.load());
+    resources.remove('depot-versions', v.id).then(
+      () => this.load(),
+      () => {
+        /* Flarum has shown the error; the version stays listed. */
+      }
+    );
   }
 
   download(file: DepotFile, v: DepotVersion) {
@@ -231,15 +244,26 @@ export default class FilePage extends Page<IPageAttrs> {
   }
 
   helpful(r: DepotReview) {
-    api.post<Partial<DepotReview>>(`reviews/${r.id}/helpful`, { helpful: !r.helpfulByMe }).then((res) => {
-      Object.assign(r, res);
-      m.redraw();
-    });
+    resources.update<DepotReview>('depot-reviews', r.id, { isHelpful: !r.helpfulByMe }).then(
+      (res) => {
+        r.helpful = res.helpful;
+        r.helpfulByMe = res.helpfulByMe;
+        m.redraw();
+      },
+      () => {
+        /* Flarum has shown the error; nothing changed here before the answer. */
+      }
+    );
   }
 
   removeReview(r: DepotReview) {
-    if (!confirm(t('file.delete_review_confirm').toString())) return;
-    api.del(`reviews/${r.id}`).then(() => this.load());
+    if (!confirm(extractText(t('file.delete_review_confirm')))) return;
+    resources.remove('depot-reviews', r.id).then(
+      () => this.load(),
+      () => {
+        /* Flarum has shown the error; the review stays listed. */
+      }
+    );
   }
 
   // ---------------------------------------------------------------- discussion
@@ -256,7 +280,10 @@ export default class FilePage extends Page<IPageAttrs> {
         this.posts = [...posts].reverse();
         m.redraw();
       },
-      () => (this.posts = [])
+      () => {
+        this.posts = [];
+        m.redraw();
+      }
     );
   }
 

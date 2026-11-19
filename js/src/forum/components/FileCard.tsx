@@ -89,8 +89,8 @@ export default class FileCard extends Component<FileCardAttrs> {
         {!isProduct ? Sparkline({ values: file.trend, width: 64, height: 20 }) : null}
         <span className="Depot-metric Depot-metric--end">
           {file.ratings ? (
-            // `ratings` counts them, so `rating` is set whenever it is non-zero.
-            [Stars({ value: file.rating! }), <b>{file.rating!.toFixed(1)}</b>]
+            // A null rating (none yet) shows no number.
+            [Stars({ value: file.rating as number }), file.rating != null ? <b>{file.rating.toFixed(1)}</b> : null]
           ) : (
             <span className="Depot-dim">{t('card.no_ratings')}</span>
           )}
@@ -141,8 +141,8 @@ export default class FileCard extends Component<FileCardAttrs> {
         ) : null}
         {file.ratings ? (
           <span className="Depot-metric">
-            {/* `ratings` counts them, so `rating` is set whenever it is non-zero. */}
-            {Stars({ value: file.rating! })} <span className="Depot-dim">{file.rating!.toFixed(1)}</span>
+            {/* A null rating (none yet) shows no number. */}
+            {Stars({ value: file.rating as number })} {file.rating != null ? <span className="Depot-dim">{file.rating.toFixed(1)}</span> : null}
           </span>
         ) : null}
       </div>

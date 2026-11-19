@@ -4,7 +4,7 @@ import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import type RequestError from 'flarum/common/utils/RequestError';
 import type Mithril from 'mithril';
-import { api } from '../depot-api';
+import { api, resources } from '../depot-api';
 import { t } from './bits';
 import { field, categorySelect } from './form/fields';
 import type { FieldAttrs } from './form/fields';
@@ -33,7 +33,7 @@ export default class EditFileModal extends FormModal<EditFileModalAttrs> {
     const f = this.attrs.file;
     this.values = {
       title: f.title,
-      category: f.category!,
+      category: f.category || '',
       tagline: f.tagline || '',
       description: f.description || '',
       game: f.game || '',
@@ -45,6 +45,11 @@ export default class EditFileModal extends FormModal<EditFileModalAttrs> {
     };
     this.shots = [...f.screenshots];
     this.added = [];
+  }
+
+  onremove(vnode: Mithril.VnodeDOM<EditFileModalAttrs, this>) {
+    super.onremove(vnode);
+    this.added.forEach((s) => URL.revokeObjectURL(s.url));
   }
 
   className() {
@@ -112,7 +117,9 @@ export default class EditFileModal extends FormModal<EditFileModalAttrs> {
                 multiple
                 className="sr-only"
                 onchange={(e: Event) =>
+                  // A dropped file skips `accept`: keep only images.
                   Array.from((e.target as HTMLInputElement).files!)
+                    .filter((f) => f.type.startsWith('image/'))
                     .slice(0, 8 - this.shots.length - this.added.length)
                     .forEach((f) => this.added.push({ file: f, url: URL.createObjectURL(f) }))
                 }
@@ -127,16 +134,23 @@ export default class EditFileModal extends FormModal<EditFileModalAttrs> {
   }
 
   removeShot(s: DepotShot) {
-    api.del(`screenshots/${s.id}`).then(() => {
-      this.shots = this.shots.filter((x) => x.id !== s.id);
-      m.redraw();
-    });
+    resources.remove('depot-screenshots', s.id).then(
+      () => {
+        this.shots = this.shots.filter((x) => x.id !== s.id);
+        m.redraw();
+      },
+      () => {
+        /* Flarum has shown the error; the screenshot stays listed. */
+      }
+    );
   }
 
   onsubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (this.loading) return;
     const form = new FormData();
-    Object.entries(this.values).forEach(([k, v]) => form.append(k, v));
+    // A file with no category keeps none: an empty one is not sent.
+    Object.entries(this.values).forEach(([k, v]) => (k !== 'category' || v) && form.append(k, v));
     this.added.forEach((s) => form.append('screenshots[]', s.file));
 
     this.loading = true;

@@ -23,8 +23,9 @@ function meta(file: DepotFile) {
       ) : null}
       {file.ratings ? (
         <span className="DepotFileHero-rating">
-          {/* A file with ratings always has a rating. */}
-          {Stars({ value: file.rating as number })} {file.rating!.toFixed(1)} <span className="Depot-dim">({number(file.ratings)})</span>
+          {/* A null rating (none yet) shows no number. */}
+          {Stars({ value: file.rating as number })} {file.rating != null ? file.rating.toFixed(1) : null}{' '}
+          <span className="Depot-dim">({number(file.ratings)})</span>
         </span>
       ) : null}
     </div>
@@ -87,7 +88,7 @@ function editItems(page: FilePage, file: DepotFile) {
 function manageItems(page: FilePage, file: DepotFile) {
   return [
     file.canModerate ? (
-      <Button icon={file.featured ? 'far fa-star' : 'fas fa-star'} onclick={() => page.act(`files/${file.id}/feature`)}>
+      <Button icon={file.featured ? 'far fa-star' : 'fas fa-star'} onclick={() => page.act({ isFeatured: !file.featured })}>
         {file.featured ? t('file.unfeature') : t('file.feature')}
       </Button>
     ) : null,
@@ -97,7 +98,7 @@ function manageItems(page: FilePage, file: DepotFile) {
       </Button>
     ) : null,
     file.canSell ? (
-      <Button icon={file.paid ? 'fas fa-lock-open' : 'fas fa-store'} onclick={() => page.act(`files/${file.id}/sell`, { paid: !file.paid })}>
+      <Button icon={file.paid ? 'fas fa-lock-open' : 'fas fa-store'} onclick={() => page.act({ isPaid: !file.paid })}>
         {file.paid ? t('file.make_free') : t('file.sell')}
       </Button>
     ) : null,

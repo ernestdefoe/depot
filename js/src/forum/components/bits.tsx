@@ -86,7 +86,7 @@ export function CategoryLabels({ slug, link = true }: { slug: string | null; lin
 
   return (
     <span className="Depot-labels">
-      {label(root!)}
+      {root ? label(root) : null}
       {c.parent ? label(c, true) : null}
     </span>
   );

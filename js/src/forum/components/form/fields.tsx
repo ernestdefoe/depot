@@ -52,7 +52,7 @@ export function categorySelect(id: string, value: string, set: (value: string) =
       <label for={id}>{t('upload.category_label')}</label>
       <select id={id} className="FormControl" value={value} onchange={(e: Event) => set(valueOf(e))}>
         {leafCategories().map((c) => (
-          <option value={c.slug}>{c.parent ? `${rootOf(c)!.name} › ${c.name}` : c.name}</option>
+          <option value={c.slug}>{c.parent && rootOf(c) ? `${rootOf(c)!.name} › ${c.name}` : c.name}</option>
         ))}
       </select>
     </div>

@@ -37,6 +37,7 @@ export default class LightboxModal extends Modal<LightboxModalAttrs> {
 
   move(d: number) {
     const n = this.attrs.shots.length;
+    if (!n) return;
     this.index = (this.index + d + n) % n;
     m.redraw();
   }

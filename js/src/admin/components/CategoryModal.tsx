@@ -6,6 +6,8 @@ import ColorPreviewInput from 'flarum/common/components/ColorPreviewInput';
 import Group from 'flarum/common/models/Group';
 import type RequestError from 'flarum/common/utils/RequestError';
 import type Mithril from 'mithril';
+import { resources } from '../../common/jsonapi';
+import { loadCategories } from '../categories';
 import type { DepotCategory, DepotCategoryList } from '../../forum/types';
 
 export interface CategoryModalAttrs extends IFormModalAttrs {
@@ -148,12 +150,11 @@ export default class CategoryModal extends FormModal<CategoryModalAttrs> {
     e.preventDefault();
     const c = this.attrs.category;
     this.loading = true;
-    app
-      .request<DepotCategoryList>({
-        method: c ? 'PATCH' : 'POST',
-        url: `${app.forum.attribute('apiUrl')}/depot/categories${c ? `/${c.id}` : ''}`,
-        body: { ...this.values, parent: this.values.parent || null, groups: [...this.groups] },
-      })
+    const { parent, ...values } = this.values;
+    const attributes = { ...values, parentId: parent ? Number(parent) : null, groupIds: [...this.groups].map(Number) };
+
+    (c ? resources.update('depot-categories', c.id, attributes) : resources.create('depot-categories', attributes))
+      .then(() => loadCategories())
       .then(
         (r) => {
           this.hide();

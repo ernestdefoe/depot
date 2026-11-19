@@ -51,8 +51,9 @@ export default class Spotlight extends Component<SpotlightAttrs> {
   download(file: DepotCard) {
     // Sold through Kiosk: its page has the Buy button, or the download for a buyer.
     if (file.paid) return m.route.set(app.route('depot.file', { slug: file.slug }));
-    // Assumes a version, as before: a featured file without one is not guarded here.
-    startDownload(file.version!);
+    // The button is hidden without a version; this only satisfies the type.
+    if (!file.version) return;
+    startDownload(file.version);
     app.modal.show(DownloadModal, { file, version: file.version });
   }
 
@@ -132,10 +133,13 @@ export default class Spotlight extends Component<SpotlightAttrs> {
   }
 
   downloadActions(file: DepotCard, v: Partial<DepotCardVersion>) {
+    // A file with no version yet has nothing to download (Details still opens it).
     return [
-      <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
-        {t('spotlight.download', { version: v.version })}
-      </Button>,
+      file.version ? (
+        <Button className="Button Button--primary Button--large" icon="fas fa-download" onclick={() => this.download(file)}>
+          {t('spotlight.download', { version: v.version })}
+        </Button>
+      ) : null,
       <a className="Button Button--large DepotSpotlight-ghost" href={app.route('depot.file', { slug: file.slug })}>
         {t('spotlight.details')}
       </a>,
@@ -151,9 +155,9 @@ export default class Spotlight extends Component<SpotlightAttrs> {
         </div>
         {file.ratings ? (
           <div className="DepotSpotlight-stat">
-            {/* `ratings` counts them, so `rating` is set whenever it is non-zero. */}
-            <b>{file.rating!.toFixed(1)}</b>
-            {Stars({ value: file.rating! })}
+            {/* A null rating (none yet) shows no number. */}
+            {file.rating != null ? <b>{file.rating.toFixed(1)}</b> : null}
+            {Stars({ value: file.rating as number })}
           </div>
         ) : null}
       </div>

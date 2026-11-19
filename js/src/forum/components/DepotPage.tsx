@@ -8,7 +8,7 @@ import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import extractText from 'flarum/common/utils/extractText';
 import type { IPageAttrs } from 'flarum/common/components/Page';
 import type Mithril from 'mithril';
-import { api, state, category, rootOf, childrenOf, roots } from '../depot-api';
+import { state, category, rootOf, childrenOf, roots, browse } from '../depot-api';
 import { t, coverStyle } from './bits';
 import FileCard, { LockedCard } from './FileCard';
 import type { ViewMode } from './FileCard';
@@ -79,7 +79,7 @@ export default class DepotPage extends Page {
   load(page = 0) {
     this.loading = true;
     const params = { category: this.slug(), sort: this.sort, q: this.query, compat: this.compat, filter: this.filter(), page };
-    const ask = (this.request = api.get<DepotBrowse>('browse', params));
+    const ask = (this.request = browse(params));
 
     return ask.then(
       (data) => {
@@ -92,6 +92,8 @@ export default class DepotPage extends Page {
         m.redraw();
       },
       () => {
+        // Only the newest request's failure matters; an older one was replaced.
+        if (ask !== this.request) return;
         this.loading = false;
         m.redraw();
       }
@@ -119,13 +121,13 @@ export default class DepotPage extends Page {
       return featured.length && !this.filter() ? <Spotlight files={featured} /> : this.plainHero();
     }
 
-    // A category the server sent always has its parent beside it.
-    const root = rootOf(c)!;
+    // A parent the server didn't send (one this person can't see): the category stands alone.
+    const root = rootOf(c) || c;
     const count = c.parent ? c.count : childrenOf(c.slug).reduce((n, s) => n + s.count, c.count);
     return (
       <header className="DepotHero" style={{ '--hero-tint': root.color || 'var(--primary-color)' }}>
         <div className="Page-container container DepotHero-inner">
-          {c.parent ? (
+          {c.parent && root !== c ? (
             <a className="DepotHero-up" href={app.route('depot.category', { slug: root.slug })}>
               <Icon name="fas fa-chevron-left" /> {root.name}
             </a>
@@ -307,8 +309,9 @@ export default class DepotPage extends Page {
 
   /** Subcategories as chips above the files — one tap down, one tap back. */
   subnav(c: DepotCategory) {
-    // A category the server sent always has its parent beside it.
-    const root = rootOf(c)!;
+    // A parent the server didn't send (one this person can't see): no chips.
+    const root = rootOf(c);
+    if (!root) return null;
     // Only the ones this person may open: a closed one would just be an empty list.
     const subs = childrenOf(root.slug).filter((sub) => sub.open);
     if (!subs.length) return null;

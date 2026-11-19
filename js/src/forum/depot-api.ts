@@ -1,11 +1,13 @@
 import app from 'flarum/forum/app';
-import type { DepotCategory, DepotFile, DepotPriceTier, DepotWatch } from './types';
+import { flatten, resources, type ResourceObject } from '../common/jsonapi';
+import type { DepotBrowse, DepotCard, DepotCategory, DepotFile, DepotPriceTier } from './types';
 
 /*
  * Depot's API, and the little state the pages share.
  *
- * Plain JSON endpoints rather than JSON:API resources: Depot's shapes are
- * built for its pages, so the pages ask for exactly what they draw.
+ * Files, reviews, versions and screenshots are JSON:API resources
+ * (`resources`, read back into the shapes in types.ts). `api` is for the
+ * few endpoints that are not: the multipart uploads.
  */
 const url = (path: string) => `${app.forum.attribute('apiUrl')}/depot/${path}`;
 
@@ -25,9 +27,50 @@ export const api = {
     }),
 };
 
+export { resources };
+
+export interface BrowseParams {
+  category: string;
+  sort: string;
+  q: string;
+  compat: string;
+  filter: string;
+  page: number;
+}
+
+const SORTS: Record<string, string> = { downloads: '-downloadCount', rating: '-rating', newest: '-createdAt' };
+
+/** One page of the downloads list, with what the page needs beside it (the list's meta). */
+export function browse(params: BrowseParams): Promise<DepotBrowse> {
+  const filter: Record<string, string> = {};
+  if (params.category) filter.category = params.category;
+  if (params.q) filter.q = params.q;
+  if (params.compat) filter.compat = params.compat;
+  if (params.filter) filter[params.filter] = '1';
+
+  const query: Record<string, unknown> = { filter, page: { offset: params.page * PER_PAGE } };
+  if (SORTS[params.sort]) query.sort = SORTS[params.sort];
+
+  return resources.get('depot-files', query).then((doc) => ({
+    ...(doc.meta as Omit<DepotBrowse, 'files' | 'hasMore' | 'page'>),
+    files: (doc.data as ResourceObject[]).map((r) => flatten<DepotCard>(r)),
+    hasMore: !!doc.links?.next,
+    page: params.page,
+  }));
+}
+
+/** The files a page of the list holds (FileResource::PER_PAGE). */
+const PER_PAGE = 24;
+
+/** A file's whole page, with the categories for its breadcrumbs. */
+export const showFile = (slug: string) =>
+  resources
+    .get(`depot-files/${encodeURIComponent(slug)}`)
+    .then((doc) => ({ ...flatten<DepotFile>(doc.data as ResourceObject), categories: (doc.meta?.categories || []) as DepotCategory[] }));
+
 /** Watch or stop watching a file, from any of the places that offer it. */
 export const toggleWatch = (file: Pick<DepotFile, 'id' | 'watching' | 'watchers'>) =>
-  api.post<DepotWatch>(`files/${file.id}/watch`, { watch: !file.watching }).then((r) => {
+  resources.update<DepotFile>('depot-files', file.id, { isWatching: !file.watching }).then((r) => {
     file.watching = r.watching;
     file.watchers = r.watchers;
     m.redraw();

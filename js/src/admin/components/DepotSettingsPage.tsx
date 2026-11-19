@@ -5,14 +5,14 @@ import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import CategoryModal from './CategoryModal';
+import { resources } from '../../common/jsonapi';
+import { loadCategories } from '../categories';
 import type { ExtensionPageAttrs } from 'flarum/admin/components/ExtensionPage';
 import type Mithril from 'mithril';
 import type { DepotCategory, DepotCategoryList } from '../../forum/types';
 
 // `params` left out is the same as passing undefined (the translator defaults it); any[] is trans()'s own type.
 const tr = (key: string, params?: Record<string, unknown>): any[] => app.translator.trans(`ernestdefoe-depot.admin.${key}`, params!);
-const api = <T,>(method: string, path: string, body?: unknown) =>
-  app.request<T>({ method, url: `${app.forum.attribute('apiUrl')}/depot/${path}`, body });
 
 /**
  * Depot's admin page: core's settings and permissions sections, plus the
@@ -27,7 +27,12 @@ export default class DepotSettingsPage extends ExtensionPage {
     super.oninit(vnode);
     this.categories = null;
     this.dragging = null;
-    api<DepotCategoryList>('GET', 'categories').then((r) => this.setCategories(r));
+    this.reload();
+  }
+
+  /** The categories as the server has them (also after a failed change, to undo it on screen). */
+  reload() {
+    loadCategories().then((r) => this.setCategories(r));
   }
 
   setCategories(r: DepotCategoryList) {
@@ -144,9 +149,17 @@ export default class DepotSettingsPage extends ExtensionPage {
     this.categories = rest;
 
     const bySlug = Object.fromEntries(rest.map((c) => [c.slug, c.id]));
-    api<DepotCategoryList>('POST', 'categories/order', { order: rest.map((c) => ({ id: c.id, parent: c.parent ? bySlug[c.parent] : null })) }).then(
-      (r) => this.setCategories(r)
-    );
+    // The whole tree in one request (a custom endpoint: JSON:API has no bulk update).
+    app
+      .request<DepotCategoryList>({
+        method: 'POST',
+        url: `${app.forum.attribute('apiUrl')}/depot/categories/order`,
+        body: { order: rest.map((c) => ({ id: c.id, parent: c.parent ? bySlug[c.parent] : null })) },
+      })
+      .then(
+        (r) => this.setCategories(r),
+        () => this.reload()
+      );
   }
 
   edit(category: DepotCategory | null) {
@@ -155,6 +168,9 @@ export default class DepotSettingsPage extends ExtensionPage {
 
   remove(c: DepotCategory) {
     if (!confirm(extractText(tr('categories.delete_confirm', { name: c.name })))) return;
-    api('DELETE', `categories/${c.id}`).then(() => api<DepotCategoryList>('GET', 'categories').then((r) => this.setCategories(r)));
+    resources.remove('depot-categories', c.id).then(
+      () => this.reload(),
+      () => this.reload()
+    );
   }
 }

@@ -5,7 +5,7 @@ import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import type Mithril from 'mithril';
-import { api, bytes, copyText, toggleWatch } from '../depot-api';
+import { bytes, copyText, toggleWatch, showFile } from '../depot-api';
 import { t, Cover } from './bits';
 import type { DepotCard, DepotCardVersion, DepotFile, DepotVersion, DepotWatch } from '../types';
 
@@ -62,6 +62,7 @@ export default class DownloadModal extends Modal<DownloadModalAttrs> {
   os!: Os;
   copied!: string | null;
   file!: DepotFile | null;
+  failed = false;
 
   oninit(vnode: Mithril.Vnode<DownloadModalAttrs, this>) {
     super.oninit(vnode);
@@ -71,10 +72,17 @@ export default class DownloadModal extends Modal<DownloadModalAttrs> {
 
     // The spotlight and cards only carry a summary; the sheet needs the rest.
     if (!this.file) {
-      api.get<DepotFile>('file', { slug: this.attrs.file.slug }).then((file) => {
-        this.file = file;
-        m.redraw();
-      });
+      showFile(this.attrs.file.slug).then(
+        (file) => {
+          this.file = file;
+          m.redraw();
+        },
+        () => {
+          // Flarum has shown the error: the sheet keeps the summary and its retry link.
+          this.failed = true;
+          m.redraw();
+        }
+      );
     }
   }
 
@@ -100,7 +108,7 @@ export default class DownloadModal extends Modal<DownloadModalAttrs> {
       <div className="Modal-body">
         {this.head(file, v, name)}
 
-        {!this.file ? <LoadingIndicator /> : null}
+        {!this.file && !this.failed ? <LoadingIndicator /> : null}
 
         {this.file && v.sha256 ? this.verify(v.sha256, name) : null}
 

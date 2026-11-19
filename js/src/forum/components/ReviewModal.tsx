@@ -1,10 +1,11 @@
+import extractText from 'flarum/common/utils/extractText';
 import FormModal from 'flarum/common/components/FormModal';
 import type { IFormModalAttrs } from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
 import type RequestError from 'flarum/common/utils/RequestError';
 import type Mithril from 'mithril';
-import { api } from '../depot-api';
+import { resources } from '../depot-api';
 import { t } from './bits';
 import type { DepotFile, DepotReview } from '../types';
 
@@ -64,7 +65,7 @@ export default class ReviewModal extends FormModal<ReviewModalAttrs> {
             maxlength="5000"
             value={this.body}
             oninput={(e: Event) => (this.body = (e.target as HTMLTextAreaElement).value)}
-            placeholder={t('review.body_placeholder').toString()}
+            placeholder={extractText(t('review.body_placeholder'))}
           />
         </div>
         <Button className="Button Button--primary Button--block" type="submit" loading={this.loading} disabled={!this.rating}>
@@ -76,8 +77,9 @@ export default class ReviewModal extends FormModal<ReviewModalAttrs> {
 
   onsubmit(e: SubmitEvent) {
     e.preventDefault();
+    if (this.loading) return;
     this.loading = true;
-    api.post(`files/${this.attrs.file.id}/review`, { rating: this.rating, body: this.body }).then(
+    resources.create('depot-reviews', { fileId: this.attrs.file.id, rating: this.rating, body: this.body }).then(
       () => {
         this.hide();
         this.attrs.onsave && this.attrs.onsave();

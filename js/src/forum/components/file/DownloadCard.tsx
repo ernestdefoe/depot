@@ -9,20 +9,27 @@ import type FilePage from '../FilePage';
 import type { DepotFile, DepotVersion } from '../../types';
 import { dotted, watchButton, when } from './shared';
 
+// Kiosk's component, typed only on Kiosk's side; looked up once, on first use.
+let lockedNotice: any = undefined;
+
+function kioskNotice() {
+  if (lockedNotice !== undefined) return lockedNotice;
+  try {
+    const mod = flarum.reg.get('ernestdefoe-kiosk', 'forum/components/LockedNotice');
+    lockedNotice = (mod && (mod.default || mod)) || null;
+  } catch (e) {
+    // Kiosk is absent or its registry lookup failed: the notice shows without a Buy button.
+    lockedNotice = null;
+  }
+  return lockedNotice;
+}
+
 /**
  * A paid file for someone who hasn't bought it: Kiosk's own offer, so every
  * Buy button on the forum is the same.
  */
 export function offer(file: DepotFile) {
-  // Kiosk's component, typed only on Kiosk's side.
-  let LockedNotice: any = null;
-  try {
-    const mod = flarum.reg.get('ernestdefoe-kiosk', 'forum/components/LockedNotice');
-    LockedNotice = mod && (mod.default || mod);
-  } catch (e) {
-    // Kiosk is absent or its registry lookup failed: the notice shows without a Buy button.
-    LockedNotice = null;
-  }
+  const LockedNotice = kioskNotice();
 
   return (
     <div className="DepotOffer">

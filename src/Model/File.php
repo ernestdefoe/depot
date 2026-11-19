@@ -7,6 +7,7 @@ use Flarum\Database\ScopeVisibilityTrait;
 use Flarum\Discussion\Discussion;
 use Flarum\User\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Grammars\PostgresGrammar;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -234,7 +235,12 @@ class File extends AbstractModel
      */
     public static function whereContains(Builder $query, string $column, string $text, bool $anyCase = false, string $boolean = 'and'): void
     {
-        $column = $query->getQuery()->getGrammar()->wrap($column);
+        $grammar = $query->getQuery()->getGrammar();
+        $column = $grammar->wrap($column);
+        // PostgreSQL has no LIKE for a json column: compare its text, as Laravel's own `like` does.
+        if ($grammar instanceof PostgresGrammar) {
+            $column .= '::text';
+        }
         $pattern = '%'.strtr($anyCase ? mb_strtolower($text) : $text, ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
 
         $query->whereRaw(($anyCase ? "lower($column)" : $column)." like ? escape '!'", [$pattern], $boolean);

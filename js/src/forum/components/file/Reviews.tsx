@@ -1,7 +1,8 @@
 import app from 'flarum/forum/app';
+import extractText from 'flarum/common/utils/extractText';
 import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
-import { api, number } from '../../depot-api';
+import { number, resources } from '../../depot-api';
 import { t, Stars, Avatar } from '../bits';
 import ReviewModal from '../ReviewModal';
 import type FilePage from '../FilePage';
@@ -60,8 +61,8 @@ export function reviews(page: FilePage, file: DepotFile) {
     <div className="DepotReviews">
       <div className="DepotReviews-summary">
         <div className="DepotReviews-score">
-          {/* A file with ratings always has a rating. */}
-          <b>{file.ratings ? file.rating!.toFixed(1) : '–'}</b>
+          {/* A null rating (none yet) shows no number. */}
+          <b>{file.ratings && file.rating != null ? file.rating.toFixed(1) : '–'}</b>
           {/* Stars draws a null rating (none yet) as empty stars. */}
           {Stars({ value: file.rating as number, size: 'Depot-stars--large' })}
           <span className="Depot-dim">{t('file.ratings', { count: number(file.ratings) })}</span>
@@ -154,18 +155,23 @@ export function reviewItem(page: FilePage, file: DepotFile, r: DepotReview) {
 
 export function replyEditor(page: FilePage, r: DepotReview) {
   const save = () =>
-    api.post<{ reply: string | null }>(`reviews/${r.id}/reply`, { reply: page.replyText }).then((res) => {
-      r.reply = res.reply;
-      page.replying = null;
-      m.redraw();
-    });
+    resources.update<DepotReview>('depot-reviews', r.id, { reply: page.replyText }).then(
+      (res) => {
+        r.reply = res.reply;
+        page.replying = null;
+        m.redraw();
+      },
+      () => {
+        /* Flarum has shown the error; the editor stays open with the text. */
+      }
+    );
   return (
     <div className="DepotReview-replyEditor">
       <textarea
         className="FormControl"
         rows="3"
         aria-label={t('file.reply')}
-        placeholder={t('file.reply_placeholder').toString()}
+        placeholder={extractText(t('file.reply_placeholder'))}
         value={page.replyText}
         oninput={(e: InputEvent) => (page.replyText = (e.target as HTMLTextAreaElement).value)}
         oncreate={(vnode) => (vnode.dom as HTMLElement).focus()}

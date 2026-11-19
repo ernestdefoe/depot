@@ -148,8 +148,8 @@ export function more(file: DepotFile) {
               <b>{f.title}</b>
               <span className="Depot-dim">
                 <Icon name="fas fa-download" /> {compact(f.downloads)}
-                {/* A file with ratings always has a rating. */}
-                {f.ratings ? [' · ', f.rating!.toFixed(1), ' ', <Icon name="fas fa-star" />] : null}
+                {/* A null rating (none yet) shows no number. */}
+                {f.ratings && f.rating != null ? [' · ', f.rating.toFixed(1), ' ', <Icon name="fas fa-star" />] : null}
               </span>
             </span>
           </a>
