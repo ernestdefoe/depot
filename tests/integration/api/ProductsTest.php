@@ -7,6 +7,7 @@ use ErnestDefoe\Depot\Extend\Products;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Products\ProductAccess;
 use ErnestDefoe\Depot\Products\ProductCatalog;
+use ErnestDefoe\Depot\Tests\integration\DepotApi;
 use Flarum\Testing\integration\RetrievesAuthorizedUsers;
 use Flarum\Testing\integration\TestCase;
 use Flarum\User\User;
@@ -15,6 +16,7 @@ use PHPUnit\Framework\Attributes\Test;
 /** A store's products: listed with prices, never downloadable, owned per viewer. */
 class ProductsTest extends TestCase
 {
+    use DepotApi;
     use RetrievesAuthorizedUsers;
 
     protected function setUp(): void
@@ -42,7 +44,7 @@ class ProductsTest extends TestCase
     public function a_product_is_listed_with_its_prices_and_installs(): void
     {
         $this->put();
-        $card = json_decode((string) $this->send($this->request('GET', '/api/depot/browse'))->getBody(), true)['files'][0];
+        $card = $this->browse()['files'][0];
 
         $this->assertSame(['Paid Thing', 'product', 12, 'https://store.example/paid-thing'], [$card['title'], $card['source'], $card['downloads'], $card['buyUrl']]);
         $this->assertSame([3900, 'USD'], [$card['tiers'][0]['cents'], $card['tiers'][0]['currency']]);
@@ -76,8 +78,8 @@ class ProductsTest extends TestCase
     public function the_store_says_who_owns_it(): void
     {
         $this->put();
-        $owner = json_decode((string) $this->send($this->request('GET', '/api/depot/file', ['authenticatedAs' => 2])->withQueryParams(['slug' => 'paid-thing']))->getBody(), true);
-        $other = json_decode((string) $this->send($this->request('GET', '/api/depot/file', ['authenticatedAs' => 3])->withQueryParams(['slug' => 'paid-thing']))->getBody(), true);
+        $owner = $this->page(2, 'paid-thing');
+        $other = $this->page(3, 'paid-thing');
 
         $this->assertTrue($owner['access']['owned']);
         $this->assertSame(['composer require test/paid-thing'], $owner['access']['install']);
@@ -93,7 +95,7 @@ class ProductsTest extends TestCase
 
         $this->assertSame(404, $this->send($this->request('GET', "/downloads/get/{$version->id}", ['authenticatedAs' => 1]))->getStatusCode());
         $this->assertSame(403, $this->send($this->request('POST', "/api/depot/files/{$file->id}", ['authenticatedAs' => 1, 'json' => ['title' => 'Renamed']]))->getStatusCode());
-        $this->assertSame(403, $this->send($this->request('DELETE', "/api/depot/files/{$file->id}", ['authenticatedAs' => 1]))->getStatusCode());
+        $this->assertSame(403, $this->remove(1, 'depot-files', $file->id));
     }
 
     #[Test]

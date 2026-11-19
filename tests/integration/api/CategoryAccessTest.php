@@ -4,6 +4,7 @@ namespace ErnestDefoe\Depot\Tests\integration\api;
 
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Model\Category;
+use ErnestDefoe\Depot\Tests\integration\DepotApi;
 use Flarum\Group\Group;
 use Flarum\Testing\integration\RetrievesAuthorizedUsers;
 use Flarum\Testing\integration\TestCase;
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\Test;
  */
 class CategoryAccessTest extends TestCase
 {
+    use DepotApi;
     use RetrievesAuthorizedUsers;
 
     private const ADMIN = 1;
@@ -63,14 +65,6 @@ class CategoryAccessTest extends TestCase
             ],
             'depot_files' => [$file(1, 1, 'Novel'), $file(2, 3, 'Primer'), $file(3, 4, 'Midway'), $file(4, 5, 'Expert')],
         ]);
-    }
-
-    private function browse(?int $as, array $query = []): array
-    {
-        $response = $this->send($this->request('GET', '/api/depot/browse', $as ? ['authenticatedAs' => $as] : [])->withQueryParams($query));
-        $this->assertSame(200, $response->getStatusCode());
-
-        return json_decode((string) $response->getBody(), true);
     }
 
     /** The categories the upload picker offers: open, with no subcategories. */

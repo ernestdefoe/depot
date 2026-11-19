@@ -8,6 +8,7 @@ use ErnestDefoe\Depot\Service\Counters;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Service\GitHub;
 use ErnestDefoe\Depot\Storage\Store;
+use ErnestDefoe\Depot\Tests\integration\DepotApi;
 use Flarum\Foundation\ValidationException;
 use Flarum\Group\Group;
 use Flarum\Tags\Tag;
@@ -24,6 +25,7 @@ use PHPUnit\Framework\Attributes\Test;
  */
 class DepotTest extends TestCase
 {
+    use DepotApi;
     use RetrievesAuthorizedUsers;
 
     protected function setUp(): void
@@ -59,19 +61,6 @@ class DepotTest extends TestCase
                 ['id' => 3, 'file_id' => 3, 'version' => '1.0', 'url' => 'https://example.com/secret.zip', 'created_at' => $now],
             ],
         ]);
-    }
-
-    private function json($response): array
-    {
-        return json_decode((string) $response->getBody(), true) ?? [];
-    }
-
-    private function browse(?int $as = null, array $query = []): array
-    {
-        $response = $this->send($this->request('GET', '/api/depot/browse', $as ? ['authenticatedAs' => $as] : [])->withQueryParams($query));
-        $this->assertSame(200, $response->getStatusCode());
-
-        return $this->json($response);
     }
 
     #[Test]
@@ -113,10 +102,8 @@ class DepotTest extends TestCase
     #[Test]
     public function a_pending_file_is_a_404_to_everyone_but_its_owner_and_moderators(): void
     {
-        $guest = $this->send($this->request('GET', '/api/depot/file')->withQueryParams(['slug' => 'pending-map']));
-        $other = $this->send($this->request('GET', '/api/depot/file', ['authenticatedAs' => 4])->withQueryParams(['slug' => 'pending-map']));
-        $owner = $this->send($this->request('GET', '/api/depot/file', ['authenticatedAs' => 2])->withQueryParams(['slug' => 'pending-map']));
-        $admin = $this->send($this->request('GET', '/api/depot/file', ['authenticatedAs' => 1])->withQueryParams(['slug' => 'pending-map']));
+        $show = fn (?int $as) => $this->send($this->request('GET', '/api/depot-files/pending-map', $as ? ['authenticatedAs' => $as] : []));
+        [$guest, $other, $owner, $admin] = [$show(null), $show(4), $show(2), $show(1)];
 
         $this->assertSame(404, $guest->getStatusCode());
         $this->assertSame(404, $other->getStatusCode());
@@ -127,8 +114,8 @@ class DepotTest extends TestCase
     #[Test]
     public function the_queue_is_for_moderators(): void
     {
-        // For anyone else the filter is ignored: they get the public list, without the pending file.
-        $this->assertNotContains('Pending map', array_column($this->browse(4, ['filter' => 'queue'])['files'], 'title'));
+        // Anyone else finds the queue empty.
+        $this->assertSame([], $this->browse(4, ['filter' => 'queue'])['files']);
         $this->assertSame(['Pending map'], array_column($this->browse(1, ['filter' => 'queue'])['files'], 'title'));
     }
 
@@ -136,10 +123,10 @@ class DepotTest extends TestCase
     public function a_member_cannot_edit_or_delete_anothers_file(): void
     {
         $edit = $this->send($this->request('POST', '/api/depot/files/1', ['authenticatedAs' => 4, 'json' => ['title' => 'Mine now']]));
-        $delete = $this->send($this->request('DELETE', '/api/depot/files/1', ['authenticatedAs' => 4]));
 
         $this->assertSame(403, $edit->getStatusCode());
-        $this->assertSame(403, $delete->getStatusCode());
+        $this->assertSame(403, $this->remove(4, 'depot-files', 1));
+        $this->assertSame(403, $this->patch(4, 'depot-files', 1, ['isFeatured' => true]));
     }
 
     #[Test]
@@ -151,7 +138,7 @@ class DepotTest extends TestCase
         ]));
 
         $this->assertSame(201, $response->getStatusCode());
-        $this->assertFalse($this->json($response)['approved']);
+        $this->assertFalse($this->decode($response)['approved']);
     }
 
     #[Test]
@@ -199,12 +186,12 @@ class DepotTest extends TestCase
     #[Test]
     public function reviews_follow_the_rules(): void
     {
-        $review = fn (int $as, int $file, int $rating) => $this->send($this->request('POST', "/api/depot/files/$file/review", ['authenticatedAs' => $as, 'json' => ['rating' => $rating, 'body' => 'Good.']]))->getStatusCode();
+        $review = fn (int $as, int $file, int $rating) => $this->review($as, $file, $rating, 'Good.');
 
         $this->assertSame(422, $review(2, 1, 5), 'the author reviewing their own file');
         $this->assertSame(422, $review(4, 1, 9), 'a rating out of range');
-        $this->assertSame(200, $review(4, 1, 4));
-        $this->assertSame(200, $review(4, 1, 5), 'changing your mind edits the review');
+        $this->assertSame(201, $review(4, 1, 4));
+        $this->assertSame(201, $review(4, 1, 5), 'changing your mind edits the review');
 
         $file = $this->database()->table('depot_files')->where('id', 1)->first();
         $this->assertSame([1, 5], [(int) $file->rating_count, (int) $file->rating_sum]);
@@ -215,8 +202,7 @@ class DepotTest extends TestCase
     {
         $this->database()->table('depot_files')->where('id', 2)->update(['wants_thread' => 1, 'thread_tag_id' => 1]);
 
-        $response = $this->send($this->request('POST', '/api/depot/files/2/approve', ['authenticatedAs' => 1]));
-        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(200, $this->patch(1, 'depot-files', 2, ['isApproved' => true]));
 
         $discussion = (int) $this->database()->table('depot_files')->where('id', 2)->value('discussion_id');
         $this->assertGreaterThan(0, $discussion);
@@ -234,23 +220,22 @@ class DepotTest extends TestCase
             ['id' => 7, 'title' => 'Public map support', 'slug' => 'public-map-support', 'comment_count' => 3, 'participant_count' => 1, 'created_at' => $now, 'user_id' => 2, 'is_private' => 0, 'hidden_at' => null],
             ['id' => 8, 'title' => 'Hidden', 'slug' => 'hidden', 'comment_count' => 1, 'participant_count' => 1, 'created_at' => $now, 'user_id' => 1, 'is_private' => 0, 'hidden_at' => $now],
         ]);
-        $link = fn (int $as, string $value, int $file = 1) => $this->send($this->request('POST', "/api/depot/files/$file/discussion", ['authenticatedAs' => $as, 'json' => ['discussion' => $value]]));
+        $link = fn (int $as, string $value, int $file = 1) => $this->patch($as, 'depot-files', $file, ['linkDiscussion' => $value]);
 
         // The owner, by the discussion's link.
-        $response = $link(2, 'https://forum.example/d/7-public-map-support/3');
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame(7, $this->json($response)['discussion']['id']);
+        $this->assertSame(200, $link(2, 'https://forum.example/d/7-public-map-support/3'));
+        $this->assertSame(7, $this->page(2, 'public-map')['discussion']['id']);
         $this->assertSame(7, (int) $this->database()->table('depot_files')->where('id', 1)->value('discussion_id'));
 
         // Somebody else's file, a discussion the owner cannot see, and nonsense.
-        $this->assertSame(403, $link(4, '7')->getStatusCode());
-        $this->assertSame(422, $link(2, '8')->getStatusCode());
-        $this->assertSame(422, $link(2, 'https://forum.example/u/7')->getStatusCode());
+        $this->assertSame(403, $link(4, '7'));
+        $this->assertSame(422, $link(2, '8'));
+        $this->assertSame(422, $link(2, 'https://forum.example/u/7'));
         $this->assertSame(7, (int) $this->database()->table('depot_files')->where('id', 1)->value('discussion_id'));
 
         // A moderator, by its number; then unlinked, and Depot will not start one later.
-        $this->assertSame(200, $link(1, '8')->getStatusCode());
-        $this->assertSame(200, $link(2, '')->getStatusCode());
+        $this->assertSame(200, $link(1, '8'));
+        $this->assertSame(200, $link(2, ''));
         $row = $this->database()->table('depot_files')->where('id', 1)->first();
         $this->assertNull($row->discussion_id);
         $this->assertSame(0, (int) $row->wants_thread);
@@ -268,15 +253,15 @@ class DepotTest extends TestCase
         $card = $this->browse()['files'][0];
         $this->assertSame(['example/map', 503], [$card['package'], $card['downloads']]);
 
-        $file = $this->json($this->send($this->request('GET', '/api/depot/file')->withQueryParams(['slug' => 'public-map'])));
+        $file = $this->page(null, 'public-map');
         $this->assertSame('https://github.com/example/map/releases/tag/1.0', $file['versions'][0]['releaseUrl']);
     }
 
     #[Test]
     public function category_administration_is_for_admins(): void
     {
-        $this->assertSame(403, $this->send($this->request('GET', '/api/depot/categories', ['authenticatedAs' => 2]))->getStatusCode());
-        $this->assertSame(200, $this->send($this->request('GET', '/api/depot/categories', ['authenticatedAs' => 1]))->getStatusCode());
+        $this->assertSame(403, $this->send($this->request('GET', '/api/depot-categories', ['authenticatedAs' => 2]))->getStatusCode());
+        $this->assertSame(200, $this->send($this->request('GET', '/api/depot-categories', ['authenticatedAs' => 1]))->getStatusCode());
     }
 
     #[Test]

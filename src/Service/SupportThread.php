@@ -5,6 +5,7 @@ namespace ErnestDefoe\Depot\Service;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Tags\Tags;
 use Flarum\Api\JsonApi;
+use Illuminate\Contracts\Container\Container;
 use Flarum\Api\Resource\DiscussionResource;
 use Flarum\Discussion\Discussion;
 use Flarum\Http\UrlGenerator;
@@ -24,7 +25,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 class SupportThread
 {
     public function __construct(
-        private JsonApi $api,
+        private Container $container,
         private UrlGenerator $url,
         private TranslatorInterface $translator,
         private SettingsRepositoryInterface $settings,
@@ -55,7 +56,9 @@ class SupportThread
 
         try {
             /** @var Discussion $discussion */
-            $discussion = $this->api->forResource(DiscussionResource::class)
+            // Fetched here, not injected: the API builds Depot's resources,
+            // and FileResource needs this service.
+            $discussion = $this->container->make(JsonApi::class)->forResource(DiscussionResource::class)
                 ->forEndpoint('create')
                 ->process(['data' => $data], [], ['actor' => $file->user]);
         } catch (\Throwable $e) {

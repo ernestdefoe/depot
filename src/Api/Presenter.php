@@ -29,6 +29,12 @@ class Presenter
 {
     public const TREND_DAYS = 30;
 
+    /** @var \WeakMap<File, array> cards already built in this request, by file */
+    private \WeakMap $cardsBuilt;
+
+    /** @var \WeakMap<File, array> file pages already built in this request */
+    private \WeakMap $pagesBuilt;
+
     public function __construct(
         private Store $store,
         private UrlGenerator $url,
@@ -37,6 +43,56 @@ class Presenter
         private Container $container,
         private Tags $tags,
     ) {
+        $this->cardsBuilt = new \WeakMap();
+        $this->pagesBuilt = new \WeakMap();
+    }
+
+    /**
+     * Build the cards for a whole page of files in one batch, so each file's
+     * fields read from it (FileResource) without a query per file.
+     *
+     * @param iterable<File> $files
+     */
+    public function primeCards(iterable $files): void
+    {
+        $files = new Collection(is_array($files) ? $files : iterator_to_array($files));
+        $missing = $files->filter(fn (File $f) => ! isset($this->cardsBuilt[$f]))->values();
+
+        foreach ($this->cards($missing) as $i => $card) {
+            $this->cardsBuilt[$missing[$i]] = $card;
+        }
+    }
+
+    /** One file's card: from the batch when primed, else built alone. */
+    public function cardOf(File $f): array
+    {
+        if (! isset($this->cardsBuilt[$f])) {
+            $this->primeCards([$f]);
+        }
+
+        return $this->cardsBuilt[$f];
+    }
+
+    /** One file's whole page, built once per request. */
+    public function pageOf(File $f, User $actor): array
+    {
+        return $this->pagesBuilt[$f] ??= $this->full($f, $actor, $this->related($f, $actor));
+    }
+
+    /**
+     * Up to three more files: the uploader's own, or from the same category,
+     * most downloaded first.
+     *
+     * @return Collection<int, File>
+     */
+    private function related(File $f, User $actor): Collection
+    {
+        $category = Category::tree()->firstWhere('id', $f->category_id);
+
+        return File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')
+            ->where('id', '!=', $f->id)
+            ->where(fn ($q) => $q->where('user_id', $f->user_id)->orWhereIn('category_id', $category ? $category->withChildren() : [0]))
+            ->orderByDesc('download_count')->take(3)->get();
     }
 
     /**

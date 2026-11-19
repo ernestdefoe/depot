@@ -5,6 +5,7 @@ namespace ErnestDefoe\Depot\Tests\integration\api;
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Kiosk\FileUnlock;
 use ErnestDefoe\Depot\Model\File;
+use ErnestDefoe\Depot\Tests\integration\DepotApi;
 use Flarum\Testing\integration\RetrievesAuthorizedUsers;
 use Flarum\Testing\integration\TestCase;
 use Flarum\User\User;
@@ -16,6 +17,7 @@ use PHPUnit\Framework\Attributes\Test;
  */
 class KioskTest extends TestCase
 {
+    use DepotApi;
     use RetrievesAuthorizedUsers;
 
     protected function setUp(): void
@@ -52,11 +54,9 @@ class KioskTest extends TestCase
         return $this->send($this->request('GET', "/downloads/get/$version", $as ? ['authenticatedAs' => $as] : []))->getStatusCode();
     }
 
-    private function page(?int $as): array
+    private function proPack(?int $as): array
     {
-        $response = $this->send($this->request('GET', '/api/depot/file', $as ? ['authenticatedAs' => $as] : [])->withQueryParams(['slug' => 'pro-pack']));
-
-        return json_decode((string) $response->getBody(), true) ?? [];
+        return $this->page($as, 'pro-pack');
     }
 
     #[Test]
@@ -75,11 +75,11 @@ class KioskTest extends TestCase
     #[Test]
     public function the_page_stays_open_and_says_who_may_download(): void
     {
-        $other = $this->page(4);
+        $other = $this->proPack(4);
         $this->assertSame([true, false, false], [$other['paid'], $other['canDownload'], $other['canSell']]);
-        $this->assertTrue($this->page(3)['canDownload']);
-        $this->assertSame([true, true], [$this->page(1)['canDownload'], $this->page(1)['canSell']]);
-        $this->assertFalse($this->page(null)['canDownload']);
+        $this->assertTrue($this->proPack(3)['canDownload']);
+        $this->assertSame([true, true], [$this->proPack(1)['canDownload'], $this->proPack(1)['canSell']]);
+        $this->assertFalse($this->proPack(null)['canDownload']);
     }
 
     #[Test]
@@ -93,7 +93,7 @@ class KioskTest extends TestCase
     #[Test]
     public function only_moderators_sell_and_only_uploads_can_be_sold(): void
     {
-        $sell = fn (int $as, int $file, bool $paid) => $this->send($this->request('POST', "/api/depot/files/$file/sell", ['authenticatedAs' => $as, 'json' => ['paid' => $paid]]))->getStatusCode();
+        $sell = fn (int $as, int $file, bool $paid) => $this->patch($as, 'depot-files', $file, ['isPaid' => $paid]);
 
         $this->assertSame(403, $sell(2, 1, false));
         $this->assertSame(403, $sell(1, 2, true));

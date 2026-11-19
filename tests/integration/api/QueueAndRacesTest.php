@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use ErnestDefoe\Depot\Job\NotifyWatchers;
 use ErnestDefoe\Depot\Job\SyncFile;
 use ErnestDefoe\Depot\Model\Category;
+use ErnestDefoe\Depot\Tests\integration\DepotApi;
 use Flarum\Group\Group;
 use Flarum\Testing\integration\ConsoleTestCase;
 use Flarum\User\User;
@@ -21,6 +22,8 @@ use PHPUnit\Framework\Attributes\Test;
  */
 class QueueAndRacesTest extends ConsoleTestCase
 {
+    use DepotApi;
+
     /** @var array<int, object> jobs pushed while a test runs */
     private array $pushed = [];
 
@@ -130,8 +133,8 @@ class QueueAndRacesTest extends ConsoleTestCase
     #[Test]
     public function a_second_review_replaces_the_first_in_one_row(): void
     {
-        $this->assertSame(200, $this->call('POST', '/api/depot/files/1/review', 3, ['rating' => 2])->getStatusCode());
-        $this->assertSame(200, $this->call('POST', '/api/depot/files/1/review', 3, ['rating' => 5, 'body' => 'Better now.'])->getStatusCode());
+        $this->assertSame(201, $this->review(3, 1, 2));
+        $this->assertSame(201, $this->review(3, 1, 5, 'Better now.'));
 
         $rows = $this->database()->table('depot_reviews')->where('file_id', 1)->get();
         $this->assertCount(1, $rows);
@@ -236,7 +239,7 @@ class QueueAndRacesTest extends ConsoleTestCase
         $db->table('depot_categories')->where('id', 2)->update(['parent_id' => 1]);
         $db->table('depot_files')->where('id', 1)->update(['category_id' => 2]);
 
-        $this->assertSame(204, $this->call('DELETE', '/api/depot/categories/2', 1)->getStatusCode());
+        $this->assertSame(204, $this->remove(1, 'depot-categories', 2));
         $this->assertSame(1, (int) $db->table('depot_files')->where('id', 1)->value('category_id'));
         $this->assertSame(1, (int) $db->table('depot_categories')->where('id', 1)->value('file_count'));
     }
