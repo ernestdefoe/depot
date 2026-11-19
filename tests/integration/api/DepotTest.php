@@ -256,6 +256,23 @@ class DepotTest extends TestCase
     }
 
     #[Test]
+    public function a_discussion_can_be_linked_from_server_code_through_the_api(): void
+    {
+        // As the announce scripts do it: core's API, internally, as the owner.
+        $this->database()->table('discussions')->insert(['id' => 7, 'title' => 'Support', 'slug' => 'support', 'comment_count' => 1, 'participant_count' => 1, 'created_at' => Carbon::now(), 'user_id' => 2, 'is_private' => 0]);
+
+        $request = (new \Laminas\Diactoros\ServerRequest([], [], '/depot-files/1', 'PATCH'))
+            ->withParsedBody(['data' => ['type' => 'depot-files', 'id' => '1', 'attributes' => ['linkDiscussion' => '7']]]);
+        $response = $this->app()->getContainer()->make(\Flarum\Api\JsonApi::class)
+            ->forResource(\ErnestDefoe\Depot\Api\Resource\FileResource::class)
+            ->forEndpoint('update')
+            ->handle(\Flarum\Http\RequestUtil::withActor($request, User::query()->find(2)));
+        $this->assertSame(200, $response->getStatusCode());
+
+        $this->assertSame(7, (int) $this->database()->table('depot_files')->where('id', 1)->value('discussion_id'));
+    }
+
+    #[Test]
     public function a_composer_package_counts_its_packagist_installs(): void
     {
         $this->database()->table('depot_files')->where('id', 1)->update(['source' => 'github', 'repo' => 'example/map', 'package' => 'example/map', 'external_downloads' => 500]);
