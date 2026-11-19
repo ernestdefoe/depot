@@ -26,7 +26,7 @@ class Version extends AbstractModel
 {
     protected $table = 'depot_versions';
 
-    protected $guarded = [];
+    protected $fillable = ['file_id', 'version', 'changelog', 'url', 'release_url', 'path', 'sha256', 'size', 'filename', 'mime', 'github_release_id', 'created_at'];
 
     public $timestamps = false;
 

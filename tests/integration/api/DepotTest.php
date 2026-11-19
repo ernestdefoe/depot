@@ -100,6 +100,20 @@ class DepotTest extends TestCase
     }
 
     #[Test]
+    public function a_version_with_a_slash_or_an_accent_still_filters(): void
+    {
+        // Saved the way Depot saves it, so each database stores its own spelling.
+        $this->app();
+        $file = File::query()->find(1);
+        $file->compat = ['Forge/Fabric', 'Café 2'];
+        $file->save();
+
+        foreach (['Forge/Fabric', 'Café 2'] as $compat) {
+            $this->assertSame(['Public map'], array_column($this->browse(null, ['category' => 'maps', 'compat' => $compat])['files'], 'title'), $compat);
+        }
+    }
+
+    #[Test]
     public function a_pending_file_is_a_404_to_everyone_but_its_owner_and_moderators(): void
     {
         $show = fn (?int $as) => $this->send($this->request('GET', '/api/depot-files/pending-map', $as ? ['authenticatedAs' => $as] : []));

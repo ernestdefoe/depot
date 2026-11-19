@@ -107,7 +107,10 @@ class CategoryResource extends AbstractDatabaseResource
         if (Category::query()->where('slug', $model->slug)->where('id', '!=', $model->id ?? 0)->exists()) {
             throw new ValidationException(['slug' => $this->message('duplicate_slug', ['slug' => $model->slug])]);
         }
-        if ($model->parent_id && $model->parent_id === $model->id) {
+        // Two levels: nothing is its own parent, and a category with
+        // subcategories stays a root (they would become a third level).
+        if ($model->parent_id && ($model->parent_id === $model->id
+            || ($model->exists && Category::query()->where('parent_id', $model->id)->exists()))) {
             throw new ValidationException(['parentId' => $this->message('bad_parent')]);
         }
         if (! $model->exists) {

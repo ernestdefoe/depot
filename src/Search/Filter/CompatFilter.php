@@ -2,6 +2,7 @@
 
 namespace ErnestDefoe\Depot\Search\Filter;
 
+use ErnestDefoe\Depot\Model\File;
 use Flarum\Search\Database\DatabaseSearchState;
 use Flarum\Search\Filter\FilterInterface;
 use Flarum\Search\SearchState;
@@ -30,7 +31,17 @@ class CompatFilter implements FilterInterface
     public function filter(SearchState $state, string|array $value, bool $negate): void
     {
         /** @var DatabaseSearchState $state */
-        $needle = addcslashes((string) json_encode(mb_substr($this->asString($value), 0, 40)), '%_\\');
-        $state->getQuery()->where('depot_files.compat', $negate ? 'not like' : 'like', '%'.$needle.'%');
+        $value = mb_substr($this->asString($value), 0, 40);
+        // MySQL's JSON type keeps "/" and accents as they are; the others
+        // keep PHP's escaped spelling. Either one is a match.
+        $spellings = array_unique([json_encode($value), json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)]);
+
+        $matches = function ($q) use ($spellings) {
+            foreach ($spellings as $spelling) {
+                File::whereContains($q, 'depot_files.compat', (string) $spelling, false, 'or');
+            }
+        };
+
+        $negate ? $state->getQuery()->whereNot($matches) : $state->getQuery()->where($matches);
     }
 }

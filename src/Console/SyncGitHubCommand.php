@@ -2,6 +2,7 @@
 
 namespace ErnestDefoe\Depot\Console;
 
+use Carbon\Carbon;
 use ErnestDefoe\Depot\Job\NotifyWatchers;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Service\GitHub;
@@ -49,44 +50,69 @@ class SyncGitHubCommand extends AbstractCommand
             return 0;
         }
 
-        // GitHub files not yet known to be packages are looked up once a day:
-        // composer.json and Packagist, neither of which spends the GitHub quota.
+        // Packagist first: it does not spend the GitHub quota, and install
+        // counts should stay current even when GitHub is rate-limiting.
+        $this->detectPackages();
+        $this->refreshPackages();
+        $this->syncReleases();
+
+        return 0;
+    }
+
+    /**
+     * GitHub files not yet known to be packages are looked up once a day,
+     * never-checked and longest-ago first: composer.json and Packagist,
+     * neither of which spends the GitHub quota.
+     */
+    private function detectPackages(): void
+    {
         $unknown = File::query()->where('source', 'github')->whereNull('package')->whereNotNull('approved_at')
-            ->where(fn ($q) => $q->whereNull('stats_synced_at')->orWhere('stats_synced_at', '<', \Carbon\Carbon::now()->subDay()))
+            ->where(fn ($q) => $q->whereNull('stats_synced_at')->orWhere('stats_synced_at', '<', Carbon::now()->subDay()))
+            ->orderByRaw('stats_synced_at is not null')->orderBy('stats_synced_at')
             ->take(Packagist::PER_RUN)->get();
+
         foreach ($unknown as $file) {
             if ($this->overBudget()) {
-                break;
+                return;
             }
             if ($package = $this->packagist->detect((string) $file->repo)) {
                 $this->packagist->adopt($file, $package);
             } else {
-                $file->stats_synced_at = \Carbon\Carbon::now();
+                $file->stats_synced_at = Carbon::now();
                 $file->saveQuietly();
             }
         }
+    }
 
-        // Packagist first: it does not spend the GitHub quota, and install
-        // counts should stay current even when GitHub is rate-limiting.
+    /** Install counts for known packages, longest-ago first. */
+    private function refreshPackages(): void
+    {
         $packages = File::query()->whereNotNull('package')->whereNotNull('approved_at')
             ->orderByRaw('stats_synced_at is not null')->orderBy('stats_synced_at')->take(Packagist::PER_RUN)->get();
+
         foreach ($packages as $file) {
             if ($this->overBudget()) {
-                break;
+                return;
             }
             $this->packagist->refresh($file);
         }
         $this->info("Packagist: {$packages->count()} packages refreshed.");
+    }
 
-        // Files that have never got a version first, so one that missed its
-        // first sync (GitHub was rate-limiting) is not left behind the rest.
+    /**
+     * New releases. Files that have never got a version first, so one that
+     * missed its first sync (GitHub was rate-limiting) is not left behind.
+     */
+    private function syncReleases(): void
+    {
         $files = File::query()->where('source', 'github')->whereNotNull('approved_at')
             ->orderByRaw('latest_version_id is not null')->orderByRaw('synced_at is not null')->orderBy('synced_at')->take(GitHub::PER_RUN)->get();
 
         foreach ($files as $file) {
             if ($this->github->limited() || $this->overBudget()) {
                 $this->info('GitHub: stopping early, the rest wait for the next run.');
-                break;
+
+                return;
             }
 
             foreach ($this->github->sync($file) as $version) {
@@ -94,7 +120,5 @@ class SyncGitHubCommand extends AbstractCommand
                 $this->queue->push(new NotifyWatchers($version->id));
             }
         }
-
-        return 0;
     }
 }

@@ -125,6 +125,16 @@ class QueueAndRacesTest extends ConsoleTestCase
     }
 
     #[Test]
+    public function watchers_of_a_members_only_category_hear_of_new_versions(): void
+    {
+        $this->database()->table('depot_category_groups')->insert(['category_id' => 2, 'group_id' => Group::MEMBER_ID]);
+        $this->database()->table('depot_files')->where('id', 1)->update(['category_id' => 2]);
+
+        $this->assertSame(201, $this->call('POST', '/api/depot/files/1/versions', 2, ['version' => '1.1', 'link' => 'https://example.com/map-1.1.zip'])->getStatusCode());
+        $this->assertEqualsCanonicalizing([3, 4], $this->database()->table('notifications')->where('type', 'depotNewVersion')->pluck('user_id')->map(fn ($id) => (int) $id)->all());
+    }
+
+    #[Test]
     public function a_duplicate_version_is_a_validation_error(): void
     {
         $this->assertSame(422, $this->call('POST', '/api/depot/files/1/versions', 2, ['version' => '1.0', 'link' => 'https://example.com/again.zip'])->getStatusCode());

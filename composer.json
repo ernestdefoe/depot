@@ -25,7 +25,8 @@
     },
     "suggest": {
         "flarum/tags": "Put each file's support discussion in a tag of the uploader's choice.",
-        "ernestdefoe/kiosk": "Sell files: a file becomes a product members buy before downloading."
+        "ernestdefoe/kiosk": "Sell files: a file becomes a product members buy before downloading.",
+        "ernestdefoe/waymark": "Breadcrumbs on the downloads pages: Home › Downloads › category › file."
     },
     "autoload": {
         "psr-4": {
@@ -43,7 +44,8 @@
             },
             "optional-dependencies": [
                 "flarum/tags",
-                "ernestdefoe/kiosk"
+                "ernestdefoe/kiosk",
+                "ernestdefoe/waymark"
             ]
         }
     },

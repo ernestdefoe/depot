@@ -26,7 +26,7 @@ class Review extends AbstractModel
 {
     protected $table = 'depot_reviews';
 
-    protected $guarded = [];
+    protected $fillable = ['file_id', 'user_id'];
 
     // Flarum's AbstractModel turns timestamps off; these tables have them.
     public $timestamps = true;

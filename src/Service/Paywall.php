@@ -3,26 +3,22 @@
 namespace ErnestDefoe\Depot\Service;
 
 use ErnestDefoe\Depot\Model\File;
-use Flarum\Extension\ExtensionManager;
 use Flarum\User\User;
-use Illuminate\Contracts\Container\Container;
 
 /**
- * Who may download a file, Kiosk sales included.
+ * Who may download a file. A paid file opens only to its buyers, its
+ * uploader and moderators.
  *
- * A paid file opens only to its buyers, its uploader and moderators.
- * 🚨 Fails closed: with Kiosk off, nobody else holds a paid file. Kiosk keeps
- * its answer for the whole request.
+ * 🚨 Fails closed: this is the answer without Kiosk, where nobody else holds
+ * a paid file. With Kiosk enabled, extend.php binds Kiosk\KioskPaywall in its
+ * place, which asks Kiosk who bought it.
  */
 class Paywall
 {
-    public function __construct(private ExtensionManager $extensions, private Container $container)
-    {
-    }
-
+    /** Whether a file can be sold here at all. */
     public function kioskEnabled(): bool
     {
-        return $this->extensions->isEnabled('ernestdefoe-kiosk');
+        return false;
     }
 
     public function canDownload(File $file, User $actor): bool
@@ -35,9 +31,11 @@ class Paywall
             return true;
         }
 
-        // Kiosk's service is built only once Kiosk is known to be enabled, so
-        // its classes are never loaded on a forum without it.
-        return $actor->exists && $this->kioskEnabled()
-            && $this->container->make(\Ernestdefoe\Kiosk\Service\Access::class)->has($actor, 'depot-file', $file->id);
+        return $actor->exists && $this->bought($file, $actor);
+    }
+
+    protected function bought(File $file, User $actor): bool
+    {
+        return false;
     }
 }

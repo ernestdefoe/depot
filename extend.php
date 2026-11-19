@@ -154,6 +154,7 @@ return [
     // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and Service\Paywall.
     (new Extend\Conditional())
         ->whenExtensionEnabled('ernestdefoe-kiosk', fn () => [
+            (new Extend\ServiceProvider())->register(\ErnestDefoe\Depot\Kiosk\KioskProvider::class),
             // Uploaders sell their own files too, where the installed Kiosk has member sellers.
             new \Ernestdefoe\Kiosk\Extend\UnlockType('depot-file', interface_exists(\Ernestdefoe\Kiosk\Unlock\SellableByMembers::class)
                 ? \ErnestDefoe\Depot\Kiosk\SellerFileUnlock::class

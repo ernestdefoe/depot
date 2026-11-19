@@ -16,7 +16,7 @@ class Screenshot extends AbstractModel
 {
     protected $table = 'depot_screenshots';
 
-    protected $guarded = [];
+    protected $fillable = ['file_id', 'position', 'path', 'width', 'height'];
 
     public $timestamps = false;
 }

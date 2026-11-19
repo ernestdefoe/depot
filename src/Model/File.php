@@ -69,7 +69,7 @@ class File extends AbstractModel
 
     protected $table = 'depot_files';
 
-    protected $guarded = [];
+    protected $fillable = ['user_id', 'product_key', 'source', 'wants_thread'];
 
     // Flarum's AbstractModel turns timestamps off; these tables have them.
     public $timestamps = true;
@@ -145,8 +145,11 @@ class File extends AbstractModel
         $query = $this->watchers();
         $category = $this->category_id ? Category::tree()->firstWhere('id', $this->category_id) : null;
 
-        if ($category && $category->isLocked()) {
-            $groups = $category->lockGroups()->pluck('id')->all();
+        $groups = $category && $category->isLocked() ? $category->lockGroups()->pluck('id')->all() : [];
+
+        // Every watcher is a member, and Members is nobody's group_user row
+        // (Category::lockedFor says the same): kept to Members, all may open it.
+        if ($groups && ! in_array(\Flarum\Group\Group::MEMBER_ID, $groups)) {
             $query->where(fn ($q) => $q->whereHas('groups', fn ($g) => $g->whereIn('groups.id', [...$groups, \Flarum\Group\Group::ADMINISTRATOR_ID, \Flarum\Group\Group::MODERATOR_ID]))->orWhere('users.id', $this->user_id));
         }
 
@@ -213,13 +216,28 @@ class File extends AbstractModel
      */
     public function scopeMatching(Builder $query, string $term, bool $tagline = false): void
     {
-        $like = '%'.addcslashes($term, '%_\\').'%';
-        $query->where(function (Builder $q) use ($like, $tagline) {
-            $q->whereLike('depot_files.title', $like);
+        $query->where(function (Builder $q) use ($term, $tagline) {
+            self::whereContains($q, 'depot_files.title', $term, true);
             if ($tagline) {
-                $q->orWhereLike('depot_files.tagline', $like);
+                self::whereContains($q, 'depot_files.tagline', $term, true, 'or');
             }
         });
+    }
+
+    /**
+     * `column LIKE %text%` with the text taken literally, on every database.
+     * Raw, for the ESCAPE clause: SQLite has no default escape character,
+     * and a backslash means something else inside a MySQL string, so "!"
+     * escapes here. $anyCase compares both sides lower-cased.
+     *
+     * @param Builder<File> $query
+     */
+    public static function whereContains(Builder $query, string $column, string $text, bool $anyCase = false, string $boolean = 'and'): void
+    {
+        $column = $query->getQuery()->getGrammar()->wrap($column);
+        $pattern = '%'.strtr($anyCase ? mb_strtolower($text) : $text, ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
+
+        $query->whereRaw(($anyCase ? "lower($column)" : $column)." like ? escape '!'", [$pattern], $boolean);
     }
 
     public function isProduct(): bool

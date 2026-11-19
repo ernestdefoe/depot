@@ -25,7 +25,7 @@ class Category extends AbstractModel
 {
     protected $table = 'depot_categories';
 
-    protected $guarded = [];
+    protected $fillable = ['slug', 'name', 'color', 'icon', 'position'];
 
     // Flarum's AbstractModel turns timestamps off; these tables have them.
     public $timestamps = true;
