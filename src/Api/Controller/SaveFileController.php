@@ -4,6 +4,8 @@ namespace ErnestDefoe\Depot\Api\Controller;
 
 use Carbon\Carbon;
 use ErnestDefoe\Depot\Api\Concerns;
+use ErnestDefoe\Depot\Api\Validates;
+use ErnestDefoe\Depot\Job\SyncFile;
 use ErnestDefoe\Depot\Model\Category;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Service\Changelog;
@@ -14,7 +16,9 @@ use ErnestDefoe\Depot\Storage\Store;
 use Flarum\Post\Exception\FloodingException;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
+use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -22,6 +26,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Create a file (POST /depot/files) or change one (POST /depot/files/{id}).
@@ -33,14 +38,16 @@ use Psr\Http\Server\RequestHandlerInterface;
 class SaveFileController implements RequestHandlerInterface
 {
     use Concerns;
+    use Validates;
 
     public function __construct(
         private Store $store,
         private Counters $counters,
-        private GitHub $github,
+        private Queue $queue,
         private SupportThread $thread,
         private ConnectionInterface $db,
         private SettingsRepositoryInterface $settings,
+        private TranslatorInterface $translator,
     ) {
     }
 
@@ -99,16 +106,21 @@ class SaveFileController implements RequestHandlerInterface
         }
 
         if ($creating) {
-            $file->slug = $this->slug($file->title);
+            $file->slug = File::freeSlug($file->title);
         }
 
-        $this->db->transaction(function () use ($file, $creating, $in, $source, $upload, $link, $shots) {
-            $this->write($file, $creating, $in, $source, $upload, $link, $shots);
-        });
+        try {
+            $this->db->transaction(function () use ($file, $creating, $in, $source, $upload, $link, $shots) {
+                $this->write($file, $creating, $in, $source, $upload, $link, $shots);
+            });
+        } catch (UniqueConstraintViolationException) {
+            // Another file took this slug in the same moment.
+            $this->fail('title', 'busy');
+        }
 
-        // Outside the transaction: never hold the database open across a call to GitHub.
+        // Releases come in from the queue, so the upload never waits on GitHub.
         if ($creating && $source === 'github') {
-            $this->github->sync($file);
+            $this->queue->push(new SyncFile($file->id));
         }
 
         $this->counters->file($file);
@@ -133,7 +145,7 @@ class SaveFileController implements RequestHandlerInterface
         if ($actor->hasPermission('depot.moderate')) {
             return;
         }
-        $limit = max(1, (int) ($this->settings->get('ernestdefoe-depot.uploads_per_hour') ?: 10));
+        $limit = max(1, (int) $this->settings->get('ernestdefoe-depot.uploads_per_hour'));
         $recent = File::query()->where('user_id', $actor->id)->where('created_at', '>', \Carbon\Carbon::now()->subHour())->count();
         if ($recent >= $limit) {
             throw new FloodingException();
@@ -147,7 +159,7 @@ class SaveFileController implements RequestHandlerInterface
         if ($creating) {
             $version = mb_substr(trim((string) Arr::get($in, 'version', '1.0.0')), 0, 40) ?: '1.0.0';
             if ($source === 'upload') {
-                $file->versions()->create(['version' => $version, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()] + $this->store->putFile($upload, $this->maxBytes()));
+                $file->versions()->create(['version' => $version, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()] + $this->store->putFile($upload));
             } elseif ($source === 'link') {
                 $file->versions()->create(['version' => $version, 'url' => $link, 'changelog' => ['added' => [], 'changed' => [], 'fixed' => []], 'created_at' => Carbon::now()]);
             }
@@ -242,18 +254,5 @@ class SaveFileController implements RequestHandlerInterface
         foreach (array_slice($shots, 0, max(0, 8 - $have)) as $shot) {
             $file->screenshots()->create(['position' => ++$position] + $this->store->putScreenshot($shot, self::SHOT_BYTES));
         }
-    }
-
-    private function slug(string $title): string
-    {
-        $base = Str::slug($title) ?: 'file';
-        $base = mb_substr($base, 0, 120);
-        $slug = $base;
-        $n = 1;
-        while (File::query()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.(++$n);
-        }
-
-        return $slug;
     }
 }

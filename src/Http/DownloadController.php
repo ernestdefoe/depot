@@ -5,6 +5,7 @@ namespace ErnestDefoe\Depot\Http;
 use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Model\Version;
 use ErnestDefoe\Depot\Service\Downloads;
+use ErnestDefoe\Depot\Service\Paywall;
 use ErnestDefoe\Depot\Storage\Store;
 use Flarum\Http\RequestUtil;
 use Flarum\Settings\SettingsRepositoryInterface;
@@ -31,6 +32,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 class DownloadController implements RequestHandlerInterface
 {
     public function __construct(
+        private Paywall $paywall,
         private Store $store,
         private Downloads $downloads,
         private SettingsRepositoryInterface $settings,
@@ -49,7 +51,8 @@ class DownloadController implements RequestHandlerInterface
             return new Response('php://memory', 404);
         }
         // A paid file: buyers, its uploader and moderators only.
-        $actor->assertPermission(File::query()->visibleTo($actor)->findOrFail($version->file_id)->canDownload($actor));
+        $file = File::query()->whereVisibleTo($actor)->findOrFail($version->file_id);
+        $actor->assertPermission($this->paywall->canDownload($file, $actor));
 
         $ip = (string) ($request->getAttribute('ipAddress') ?? Arr::get($request->getServerParams(), 'REMOTE_ADDR', ''));
         $this->downloads->count($version, $actor, $ip);

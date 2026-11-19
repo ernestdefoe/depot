@@ -24,9 +24,9 @@ class ShowFileController implements RequestHandlerInterface
     {
         $actor = $this->actor($request);
         $slug = (string) Arr::get($request->getQueryParams(), 'slug');
-        $file = File::query()->visibleTo($actor)->where('slug', $slug)->firstOrFail();
+        $file = File::query()->whereVisibleTo($actor)->where('slug', $slug)->firstOrFail();
 
-        $related = File::query()->visibleTo($actor)->whereNotNull('approved_at')
+        $related = File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')
             ->where('id', '!=', $file->id)
             ->where(fn ($q) => $q->where('user_id', $file->user_id)->orWhereIn('category_id', optional(Category::tree()->firstWhere('id', $file->category_id))->withChildren() ?: [0]))
             ->orderByDesc('download_count')->take(3)->get();

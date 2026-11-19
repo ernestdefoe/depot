@@ -13,15 +13,15 @@ return [
     'up' => function (Builder $schema) {
         if (! $schema->hasColumn('depot_files', 'package')) {
             $schema->table('depot_files', function (Blueprint $table) {
-                $table->string('package', 140)->nullable()->after('repo');
-                $table->unsignedInteger('external_downloads')->default(0)->after('download_count');
-                $table->dateTime('stats_synced_at')->nullable()->after('synced_at');
+                $table->string('package', 140)->nullable();
+                $table->unsignedInteger('external_downloads')->default(0);
+                $table->dateTime('stats_synced_at')->nullable();
                 $table->index(['package', 'stats_synced_at']);
             });
         }
         if (! $schema->hasColumn('depot_versions', 'release_url')) {
             $schema->table('depot_versions', function (Blueprint $table) {
-                $table->string('release_url', 500)->nullable()->after('url');
+                $table->string('release_url', 500)->nullable();
             });
         }
     },

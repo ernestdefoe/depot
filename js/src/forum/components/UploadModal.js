@@ -121,7 +121,7 @@ export default class UploadModal extends FormModal {
   }
 
   maxBytes() {
-    return (app.forum.attribute('depotMaxUploadMb') || 250) * 1048576;
+    return app.forum.attribute('depotMaxUploadMb') * 1048576;
   }
 
   tooLarge() {

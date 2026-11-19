@@ -26,7 +26,7 @@ class FileMeta
     public function __invoke(Document $document, ServerRequestInterface $request): void
     {
         $slug = (string) ($request->getQueryParams()['slug'] ?? '');
-        $file = File::query()->visibleTo(new Guest())->whereNotNull('approved_at')->with(['screenshots', 'latest'])->where('slug', $slug)->first();
+        $file = File::query()->whereVisibleTo(new Guest())->whereNotNull('approved_at')->with(['screenshots', 'latest'])->where('slug', $slug)->first();
         if (! $file) {
             return;
         }

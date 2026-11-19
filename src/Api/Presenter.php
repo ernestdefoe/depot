@@ -8,13 +8,15 @@ use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Model\Review;
 use ErnestDefoe\Depot\Model\Screenshot;
 use ErnestDefoe\Depot\Model\Version;
+use ErnestDefoe\Depot\Service\Paywall;
 use ErnestDefoe\Depot\Storage\Store;
-use Flarum\Http\UrlGenerator;
-use Flarum\User\User;
-use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Eloquent\Collection;
 use Flarum\Discussion\Discussion;
 use Flarum\Extension\ExtensionManager;
+use Flarum\Http\UrlGenerator;
+use Flarum\User\User;
+use Illuminate\Contracts\Container\Container;
+use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Every shape the API sends, in one place.
@@ -32,6 +34,8 @@ class Presenter
         private UrlGenerator $url,
         private ConnectionInterface $db,
         private ExtensionManager $extensions,
+        private Paywall $paywall,
+        private Container $container,
     ) {
     }
 
@@ -218,9 +222,9 @@ class Presenter
             'canLinkDiscussion' => $f->canLinkDiscussion($actor),
             'canModerate' => $actor->hasPermission('depot.moderate'),
             'canReview' => $actor->exists && ! $f->isOwnedBy($actor) && $actor->hasPermission('depot.review'),
-            'canDownload' => $f->canDownload($actor),
+            'canDownload' => $this->paywall->canDownload($f, $actor),
             // "Sell through Kiosk" in File controls; "Make it free" stays while it is paid.
-            'canSell' => $actor->hasPermission('depot.moderate') && $f->source === File::SELLABLE && ($f->paid || File::kioskEnabled()),
+            'canSell' => $actor->hasPermission('depot.moderate') && $f->source === File::SELLABLE && ($f->paid || $this->paywall->kioskEnabled()),
             'updateUrl' => $this->url->to('api')->route('depot.latest', ['slug' => $f->slug]),
         ];
     }
@@ -228,8 +232,8 @@ class Presenter
     /** What the store says about this viewer and the product: do they own it, and how do they install it. */
     private function access(File $f, User $actor): ?array
     {
-        foreach (resolve('depot.product_access') as $class) {
-            $answer = resolve($class)->access([$f], $actor)[$f->product_key] ?? null;
+        foreach ($this->container->make('depot.product_access') as $class) {
+            $answer = $this->container->make($class)->access([$f], $actor)[$f->product_key] ?? null;
             if ($answer) {
                 return ['owned' => (bool) $answer['owned'], 'install' => array_values($answer['install'] ?? []), 'manageUrl' => $answer['manageUrl'] ?? null];
             }

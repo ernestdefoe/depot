@@ -3,6 +3,7 @@
 namespace ErnestDefoe\Depot\Api\Controller;
 
 use ErnestDefoe\Depot\Api\Concerns;
+use ErnestDefoe\Depot\Api\Validates;
 use ErnestDefoe\Depot\Model\Version;
 use ErnestDefoe\Depot\Service\Counters;
 use ErnestDefoe\Depot\Storage\Store;
@@ -11,12 +12,14 @@ use Laminas\Diactoros\Response\EmptyResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 class DeleteVersionController implements RequestHandlerInterface
 {
     use Concerns;
+    use Validates;
 
-    public function __construct(private Store $store, private Counters $counters)
+    public function __construct(private Store $store, private Counters $counters, private TranslatorInterface $translator)
     {
     }
 

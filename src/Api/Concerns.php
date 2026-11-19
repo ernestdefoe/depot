@@ -3,7 +3,6 @@
 namespace ErnestDefoe\Depot\Api;
 
 use ErnestDefoe\Depot\Model\File;
-use Flarum\Foundation\ValidationException;
 use Flarum\Http\RequestUtil;
 use Flarum\User\Exception\PermissionDeniedException;
 use Flarum\User\User;
@@ -37,7 +36,7 @@ trait Concerns
     /** A file this person may see, by id, or a 404 — never a 403 that confirms it exists. */
     protected function visibleFile(User $actor, int|string $id): File
     {
-        return File::query()->visibleTo($actor)->findOrFail((int) $id);
+        return File::query()->whereVisibleTo($actor)->findOrFail((int) $id);
     }
 
     protected function editableFile(User $actor, int|string $id): File
@@ -48,15 +47,5 @@ trait Concerns
         }
 
         return $file;
-    }
-
-    protected function fail(string $field, string $key, array $params = []): never
-    {
-        throw new ValidationException([$field => resolve('translator')->trans("ernestdefoe-depot.api.$key", $params)]);
-    }
-
-    protected function maxBytes(): int
-    {
-        return max(1, (int) (resolve('flarum.settings')->get('ernestdefoe-depot.max_upload_mb') ?: 250)) * 1048576;
     }
 }

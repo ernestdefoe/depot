@@ -27,7 +27,7 @@ class LatestController implements RequestHandlerInterface
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $actor = $this->actor($request);
-        $file = File::query()->visibleTo($actor)->whereNotNull('approved_at')
+        $file = File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')
             ->where('slug', (string) Arr::get($request->getQueryParams(), 'slug'))->with('latest')->firstOrFail();
         $v = $file->latest;
 

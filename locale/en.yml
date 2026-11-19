@@ -339,6 +339,7 @@ ernestdefoe-depot:
     bad_discussion: That isn't a discussion you can see here. Paste its link, or its number.
     no_version: Give the version a number.
     duplicate_version: "Version {version} already exists."
+    busy: Another file was saved with the same name at the same moment. Please try again.
     last_version: This is the only version. Delete the file instead.
     cannot_review: You can't review this file.
     bad_rating: Choose between one and five stars.

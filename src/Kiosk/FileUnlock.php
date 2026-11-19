@@ -12,7 +12,7 @@ use Flarum\User\User;
  * (see extend.php), so Depot never needs Kiosk installed.
  *
  * Nothing is written when somebody buys: a paid file's download asks Kiosk
- * whether the member holds it (File::canDownload), so access starts and stops
+ * whether the member holds it (Paywall::canDownload), so access starts and stops
  * exactly with the purchase. Only uploads can be sold: a linked or GitHub
  * file's bytes are public somewhere else.
  */

@@ -7,6 +7,7 @@ use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Model\Version;
 use Flarum\Settings\SettingsRepositoryInterface;
 use GuzzleHttp\Client;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -26,6 +27,7 @@ class GitHub
         private Counters $counters,
         private LoggerInterface $log,
         private Packagist $packagist,
+        private Client $http,
     ) {
     }
 
@@ -52,7 +54,7 @@ class GitHub
             // With the forum's token, a member could otherwise name a private
             // repository the token can read and publish its releases here.
             if ($this->settings->get('ernestdefoe-depot.github_token')) {
-                $repo = json_decode((string) $this->client()->get("repos/{$file->repo}")->getBody(), true);
+                $repo = json_decode((string) $this->get("repos/{$file->repo}")->getBody(), true);
                 if (! is_array($repo) || ($repo['private'] ?? true) !== false) {
                     $this->log->info("[depot] GitHub sync refused for {$file->repo}: not a public repository");
 
@@ -60,7 +62,7 @@ class GitHub
                 }
             }
 
-            $response = $this->client()->get("repos/{$file->repo}/releases", ['query' => ['per_page' => $limit]]);
+            $response = $this->get("repos/{$file->repo}/releases", ['query' => ['per_page' => $limit]]);
             $releases = json_decode((string) $response->getBody(), true) ?: [];
         } catch (\Throwable $e) {
             $this->log->info("[depot] GitHub sync skipped for {$file->repo}: ".$e->getMessage());
@@ -121,25 +123,32 @@ class GitHub
     private function iconFromRepo(File $file): void
     {
         try {
-            $raw = (string) $this->client()->get("repos/{$file->repo}/contents/composer.json", [
+            $raw = (string) $this->get("repos/{$file->repo}/contents/composer.json", [
                 'headers' => ['Accept' => 'application/vnd.github.raw'],
             ])->getBody();
             $composer = json_decode($raw, true);
         } catch (\Throwable $e) {
-            return; // asked again on the next sync
+            // Asked again on the next sync.
+            $this->log->info("[depot] composer.json skipped for {$file->repo}: ".$e->getMessage());
+
+            return;
         }
 
         $file->icon = File::cleanIcon(is_array($composer) ? ($composer['extra']['flarum-extension']['icon'] ?? null) : null);
         $file->saveQuietly();
     }
 
-    private function client(): Client
+    /** A GitHub API call, with the forum's token when it has one and short timeouts. */
+    private function get(string $path, array $options = []): ResponseInterface
     {
         $headers = ['Accept' => 'application/vnd.github+json', 'User-Agent' => 'Depot-for-Flarum'];
         if ($token = $this->settings->get('ernestdefoe-depot.github_token')) {
             $headers['Authorization'] = 'Bearer '.$token;
         }
 
-        return new Client(['base_uri' => 'https://api.github.com/', 'timeout' => 6, 'connect_timeout' => 3, 'headers' => $headers]);
+        return $this->http->get('https://api.github.com/'.$path, array_replace_recursive(
+            ['timeout' => 6, 'connect_timeout' => 3, 'headers' => $headers],
+            $options,
+        ));
     }
 }

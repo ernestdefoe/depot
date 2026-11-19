@@ -14,7 +14,7 @@ return [
             return;
         }
         $schema->table('depot_files', function (Blueprint $table) {
-            $table->json('icon')->nullable()->after('buy_url');
+            $table->json('icon')->nullable();
         });
     },
     'down' => function (Builder $schema) {

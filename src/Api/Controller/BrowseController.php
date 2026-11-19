@@ -41,7 +41,7 @@ class BrowseController implements RequestHandlerInterface
 
         $category = $slug !== '' ? Category::tree()->firstWhere('slug', $slug) : null;
 
-        $query = File::query()->visibleTo($actor);
+        $query = File::query()->whereVisibleTo($actor);
 
         $queue = $this->param($request, 'filter') === 'queue' && $actor->hasPermission('depot.moderate');
 
@@ -93,7 +93,7 @@ class BrowseController implements RequestHandlerInterface
 
         // The spotlight's files are presented in the same batch as the list.
         $featured = $first && ! $slug
-            ? File::query()->visibleTo($actor)->whereNotNull('approved_at')->where('featured', true)->orderByDesc('released_at')->take(5)->get()
+            ? File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')->where('featured', true)->orderByDesc('released_at')->take(5)->get()
             : collect();
         $cards = collect($this->presenter->cards($files->concat($featured->whereNotIn('id', $files->pluck('id')))))->keyBy('id');
 
@@ -117,7 +117,7 @@ class BrowseController implements RequestHandlerInterface
             return [];
         }
 
-        $values = File::query()->visibleTo($actor)->whereNotNull('approved_at')
+        $values = File::query()->whereVisibleTo($actor)->whereNotNull('approved_at')
             ->whereIn('category_id', $category->withChildren())
             ->pluck('compat')->flatten()->filter()->unique()->values()->all();
 

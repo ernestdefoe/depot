@@ -60,7 +60,9 @@ export default class LinkDiscussionModal extends FormModal {
         this.hide();
         this.attrs.onsave();
       })
-      .catch(() => {})
+      .catch(() => {
+        /* app.request already showed the alert; the modal stays open to try again */
+      })
       .finally(() => {
         this.loading = false;
         m.redraw();

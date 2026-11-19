@@ -9,9 +9,11 @@ use ErnestDefoe\Depot\Model\Version;
 use ErnestDefoe\Depot\Service\Changelog;
 use ErnestDefoe\Depot\Service\Counters;
 use ErnestDefoe\Depot\Storage\Store;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Str;
 use Laminas\Diactoros\StreamFactory;
 use Laminas\Diactoros\UploadedFile;
+use Psr\Log\LoggerInterface;
 
 /**
  * How a store puts its products into Depot.
@@ -26,7 +28,7 @@ use Laminas\Diactoros\UploadedFile;
  */
 class ProductCatalog
 {
-    public function __construct(private Counters $counters, private Store $store)
+    public function __construct(private Counters $counters, private Store $store, private LoggerInterface $log)
     {
     }
 
@@ -45,7 +47,7 @@ class ProductCatalog
 
         $file->title = mb_substr($data['title'], 0, 120);
         if (! $file->exists) {
-            $file->slug = $this->slug($data['slug'] ?? $file->title);
+            $file->slug = File::freeSlug($data['slug'] ?? $file->title);
             $file->approved_at = Carbon::now();
             $file->user_id = $data['user_id'] ?? null;
         }
@@ -67,7 +69,18 @@ class ProductCatalog
         if (array_key_exists('icon', $data)) {
             $file->icon = File::cleanIcon($data['icon']);
         }
-        $file->save();
+
+        try {
+            $file->save();
+        } catch (UniqueConstraintViolationException $e) {
+            // A file took the slug since it was chosen: choose again, once.
+            if (! $file->exists) {
+                $file->slug = File::freeSlug($data['slug'] ?? $file->title);
+                $file->save();
+            } else {
+                throw $e;
+            }
+        }
 
         // Screenshots are added once: the store owns them, and re-adding them
         // on every sync would grow the disk forever.
@@ -79,6 +92,7 @@ class ProductCatalog
                     $file->screenshots()->create(['position' => ++$position] + $this->store->putScreenshot($upload, 20 * 1048576));
                 } catch (\Throwable $e) {
                     // One unreadable picture does not stop the rest.
+                    $this->log->info("[depot] Screenshot skipped for {$file->slug}: ".$e->getMessage());
                 }
             }
         }
@@ -133,16 +147,5 @@ class ProductCatalog
             'icon' => $c['icon'] ?? null,
             'position' => (int) Category::query()->max('position') + 1,
         ]);
-    }
-
-    private function slug(string $title): string
-    {
-        $base = Str::slug($title) ?: 'file';
-        $slug = $base;
-        for ($n = 2; File::query()->where('slug', $slug)->exists(); $n++) {
-            $slug = "$base-$n";
-        }
-
-        return $slug;
     }
 }

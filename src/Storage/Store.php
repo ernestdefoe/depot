@@ -3,6 +3,7 @@
 namespace ErnestDefoe\Depot\Storage;
 
 use Flarum\Foundation\ValidationException;
+use Flarum\Settings\SettingsRepositoryInterface;
 use Illuminate\Contracts\Filesystem\Factory as Filesystem;
 use Illuminate\Contracts\Filesystem\Cloud;
 use Illuminate\Contracts\Filesystem\Filesystem as Disk;
@@ -37,8 +38,11 @@ class Store
     public const SHOT_FULL = 1920;
     public const SHOT_THUMB = 640;
 
-    public function __construct(private Filesystem $filesystem, private TranslatorInterface $translator)
-    {
+    public function __construct(
+        private Filesystem $filesystem,
+        private TranslatorInterface $translator,
+        private SettingsRepositoryInterface $settings,
+    ) {
     }
 
     private function t(string $key, array $params = []): string
@@ -58,6 +62,12 @@ class Store
         return $this->filesystem->disk(self::MEDIA);
     }
 
+    /** The largest file a member may upload, from the setting in megabytes. */
+    public function maxBytes(): int
+    {
+        return max(1, (int) $this->settings->get('ernestdefoe-depot.max_upload_mb')) * 1048576;
+    }
+
     private static function fan(string $hash): string
     {
         return substr($hash, 0, 2).'/'.substr($hash, 2, 2).'/'.$hash;
@@ -68,25 +78,25 @@ class Store
      *
      * @return array{path: string, sha256: string, size: int, filename: string, mime: string}
      */
-    public function putFile(UploadedFileInterface $upload, int $maxBytes): array
+    public function putFile(UploadedFileInterface $upload): array
     {
-        $this->assertUploaded($upload, 'file', $maxBytes);
+        $this->assertUploaded($upload, 'file', $this->maxBytes());
 
-        $tmp = tempnam(sys_get_temp_dir(), 'depot');
-        $upload->moveTo($tmp);
+        // Hashed as it streams, then streamed to the disk: no copy of the
+        // file is made on the way.
+        $stream = $upload->getStream();
+        $stream->rewind();
+        $hash = hash_init('sha256');
+        while (! $stream->eof()) {
+            hash_update($hash, $stream->read(1048576));
+        }
+        $sha = hash_final($hash);
+        $size = (int) ($upload->getSize() ?? $stream->getSize());
+        $path = self::fan($sha);
 
-        try {
-            $sha = hash_file('sha256', $tmp);
-            $size = (int) filesize($tmp);
-            $path = self::fan($sha);
-
-            if (! $this->files()->exists($path)) {
-                $stream = fopen($tmp, 'rb');
-                $this->files()->writeStream($path, $stream);
-                is_resource($stream) && fclose($stream);
-            }
-        } finally {
-            @unlink($tmp);
+        if (! $this->files()->exists($path)) {
+            $stream->rewind();
+            $this->files()->writeStream($path, $stream->detach());
         }
 
         return [

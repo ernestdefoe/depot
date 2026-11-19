@@ -4,6 +4,7 @@ namespace ErnestDefoe\Depot\Api\Controller;
 
 use ErnestDefoe\Depot\Api\Concerns;
 use ErnestDefoe\Depot\Model\File;
+use ErnestDefoe\Depot\Service\Paywall;
 use Flarum\User\Exception\PermissionDeniedException;
 use Illuminate\Support\Arr;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -16,6 +17,10 @@ class SellFileController implements RequestHandlerInterface
 {
     use Concerns;
 
+    public function __construct(private Paywall $paywall)
+    {
+    }
+
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $actor = $this->actor($request);
@@ -23,7 +28,7 @@ class SellFileController implements RequestHandlerInterface
         $file = $this->visibleFile($actor, Arr::get($request->getQueryParams(), 'id'));
         $paid = filter_var(Arr::get($this->input($request), 'paid'), FILTER_VALIDATE_BOOL);
 
-        if ($paid && ($file->source !== File::SELLABLE || ! File::kioskEnabled())) {
+        if ($paid && ($file->source !== File::SELLABLE || ! $this->paywall->kioskEnabled())) {
             throw new PermissionDeniedException();
         }
 

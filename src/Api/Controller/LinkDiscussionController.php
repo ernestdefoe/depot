@@ -3,6 +3,7 @@
 namespace ErnestDefoe\Depot\Api\Controller;
 
 use ErnestDefoe\Depot\Api\Concerns;
+use ErnestDefoe\Depot\Api\Validates;
 use ErnestDefoe\Depot\Api\Presenter;
 use Flarum\Discussion\Discussion;
 use Flarum\User\Exception\PermissionDeniedException;
@@ -11,6 +12,7 @@ use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Point a file at a discussion that already exists, as its support
@@ -22,8 +24,9 @@ use Psr\Http\Server\RequestHandlerInterface;
 class LinkDiscussionController implements RequestHandlerInterface
 {
     use Concerns;
+    use Validates;
 
-    public function __construct(private Presenter $presenter)
+    public function __construct(private Presenter $presenter, private TranslatorInterface $translator)
     {
     }
 

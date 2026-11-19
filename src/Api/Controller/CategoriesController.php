@@ -3,6 +3,7 @@
 namespace ErnestDefoe\Depot\Api\Controller;
 
 use ErnestDefoe\Depot\Api\Concerns;
+use ErnestDefoe\Depot\Api\Validates;
 use ErnestDefoe\Depot\Api\Presenter;
 use ErnestDefoe\Depot\Model\Category;
 use ErnestDefoe\Depot\Model\File;
@@ -15,6 +16,7 @@ use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Category administration: list, create, change, delete and reorder, all
@@ -24,8 +26,9 @@ use Psr\Http\Server\RequestHandlerInterface;
 class CategoriesController implements RequestHandlerInterface
 {
     use Concerns;
+    use Validates;
 
-    public function __construct(private Presenter $presenter, private Counters $counters)
+    public function __construct(private Presenter $presenter, private Counters $counters, private TranslatorInterface $translator)
     {
     }
 

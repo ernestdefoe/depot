@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use ErnestDefoe\Depot\Model\File;
 use GuzzleHttp\Client;
 use Illuminate\Database\ConnectionInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -30,6 +31,7 @@ class Packagist
         private ConnectionInterface $db,
         private Counters $counters,
         private LoggerInterface $log,
+        private Client $http,
     ) {
     }
 
@@ -41,17 +43,19 @@ class Packagist
         }
 
         try {
-            $composer = json_decode((string) $this->client()->get("https://raw.githubusercontent.com/$repo/HEAD/composer.json")->getBody(), true);
+            $composer = json_decode((string) $this->get("https://raw.githubusercontent.com/$repo/HEAD/composer.json")->getBody(), true);
             $name = is_array($composer) ? strtolower((string) ($composer['name'] ?? '')) : '';
             if (! preg_match(self::NAME, $name)) {
                 return null;
             }
 
-            $package = json_decode((string) $this->client()->get("https://packagist.org/packages/$name.json")->getBody(), true);
+            $package = json_decode((string) $this->get("https://packagist.org/packages/$name.json")->getBody(), true);
             $source = rtrim(preg_replace('#\.git$#', '', (string) ($package['package']['repository'] ?? '')) ?? '', '/');
 
             return strcasecmp($source, "https://github.com/$repo") === 0 ? $name : null;
         } catch (\Throwable $e) {
+            $this->log->info("[depot] Packagist lookup skipped for $repo: ".$e->getMessage());
+
             return null;
         }
     }
@@ -77,6 +81,7 @@ class Packagist
             }
         } catch (\Throwable $e) {
             // Without the date the file keeps the day it was added.
+            $this->log->info("[depot] Packagist history skipped for $package: ".$e->getMessage());
         }
 
         $file->saveQuietly();
@@ -97,13 +102,14 @@ class Packagist
                 $file->icon = File::cleanIcon($this->versions($file->package)[0]['extra']['flarum-extension']['icon'] ?? null);
             } catch (\Throwable $e) {
                 // Tried again next time.
+                $this->log->info("[depot] Packagist icon skipped for {$file->package}: ".$e->getMessage());
             }
         }
         $file->saveQuietly();
 
         try {
-            $stats = json_decode((string) $this->client()->get("https://packagist.org/packages/{$file->package}/stats.json")->getBody(), true);
-            $daily = json_decode((string) $this->client()->get("https://packagist.org/packages/{$file->package}/stats/all.json", [
+            $stats = json_decode((string) $this->get("https://packagist.org/packages/{$file->package}/stats.json")->getBody(), true);
+            $daily = json_decode((string) $this->get("https://packagist.org/packages/{$file->package}/stats/all.json", [
                 'query' => ['average' => 'daily', 'from' => Carbon::today()->subDays(31)->toDateString()],
             ])->getBody(), true);
         } catch (\Throwable $e) {
@@ -137,13 +143,17 @@ class Packagist
      */
     private function versions(string $package): array
     {
-        $meta = json_decode((string) $this->client()->get("https://repo.packagist.org/p2/$package.json")->getBody(), true);
+        $meta = json_decode((string) $this->get("https://repo.packagist.org/p2/$package.json")->getBody(), true);
 
         return array_values($meta['packages'][$package] ?? []);
     }
 
-    private function client(): Client
+    /** A call to Packagist or GitHub's raw files, with short timeouts. */
+    private function get(string $url, array $options = []): ResponseInterface
     {
-        return new Client(['timeout' => 6, 'connect_timeout' => 3, 'headers' => ['User-Agent' => 'Depot-for-Flarum']]);
+        return $this->http->get($url, array_replace_recursive(
+            ['timeout' => 6, 'connect_timeout' => 3, 'headers' => ['User-Agent' => 'Depot-for-Flarum']],
+            $options,
+        ));
     }
 }

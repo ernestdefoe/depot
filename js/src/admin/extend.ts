@@ -6,21 +6,18 @@ import DepotSettingsPage from './components/DepotSettingsPage';
  * Permissions go into Flarum's own Permissions page. Each is a callback: the
  * translator is not ready when this module is evaluated.
  */
-const tr = (key) => app.translator.trans(`ernestdefoe-depot.admin.${key}`);
+const tr = (key: string) => app.translator.trans(`ernestdefoe-depot.admin.${key}`);
 
-const perm = (permission, icon, section) => [
-  () => ({ icon, permission, label: app.translator.trans(`ernestdefoe-depot.admin.permissions.${permission.split('.')[1]}`) }),
-  section,
-];
+const perm = (permission: string, icon: string, section: 'view' | 'start' | 'reply' | 'moderate') =>
+  [() => ({ icon, permission, label: tr(`permissions.${permission.split('.')[1]}`) }), section] as const;
 
-export const extend = [
+export default [
   new Extend.Admin()
     .page(DepotSettingsPage)
     .setting(() => ({
       setting: 'ernestdefoe-depot.count_window',
       type: 'select',
       options: { 1: tr('settings.window_1'), 24: tr('settings.window_24'), 168: tr('settings.window_168') },
-      default: '24',
       label: tr('settings.count_window'),
       help: tr('settings.count_window_help'),
     }))
@@ -70,5 +67,3 @@ export const extend = [
     .permission(...perm('depot.review', 'far fa-star', 'reply'))
     .permission(...perm('depot.moderate', 'fas fa-gavel', 'moderate')),
 ];
-
-app.initializers.add('ernestdefoe-depot', () => {});

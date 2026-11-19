@@ -3,12 +3,14 @@
 namespace ErnestDefoe\Depot\Model;
 
 use Flarum\Database\AbstractModel;
+use Flarum\Database\ScopeVisibilityTrait;
 use Flarum\Discussion\Discussion;
 use Flarum\User\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -58,6 +60,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class File extends AbstractModel
 {
+    use ScopeVisibilityTrait;
+
     public const SOURCES = ['upload', 'link', 'github'];
 
     /** The one source Kiosk can sell: bytes only this forum hands out. */
@@ -182,67 +186,25 @@ class File extends AbstractModel
         return (! $this->isProduct() && $this->isOwnedBy($actor)) || $actor->hasPermission('depot.moderate');
     }
 
+    /**
+     * A slug no other file has: the title's, with -2, -3… on a clash. Two
+     * saves racing for the same one meet the unique key, and the caller
+     * reports that.
+     */
+    public static function freeSlug(string $title): string
+    {
+        $base = mb_substr(Str::slug($title) ?: 'file', 0, 120);
+        $slug = $base;
+        for ($n = 2; self::query()->where('slug', $slug)->exists(); $n++) {
+            $slug = "$base-$n";
+        }
+
+        return $slug;
+    }
+
     public function isProduct(): bool
     {
         return $this->source === 'product';
-    }
-
-    /**
-     * May this person download it? A paid file only for its buyers, its
-     * uploader and moderators. 🚨 Fails closed: with Kiosk off, nobody else
-     * holds a paid file. Kiosk keeps the answer for the whole request.
-     */
-    public function canDownload(User $actor): bool
-    {
-        if (! $actor->hasPermission('depot.download')) {
-            return false;
-        }
-
-        if (! $this->paid || $this->isOwnedBy($actor) || $actor->hasPermission('depot.moderate')) {
-            return true;
-        }
-
-        return $actor->exists && self::kioskEnabled()
-            && resolve(\Ernestdefoe\Kiosk\Service\Access::class)->has($actor, 'depot-file', $this->id);
-    }
-
-    public static function kioskEnabled(): bool
-    {
-        return class_exists(\Ernestdefoe\Kiosk\Service\Access::class)
-            && resolve(\Flarum\Extension\ExtensionManager::class)->isEnabled('ernestdefoe-kiosk');
-    }
-
-    /**
-     * Files this person may open.
-     *
-     * One scope asked by every read, so no list can forget to ask: approved
-     * files outside a locked category, plus the person's own files at any
-     * stage, plus everything for a moderator.
-     *
-     * @param Builder<File> $query
-     */
-    public function scopeVisibleTo(Builder $query, User $actor): void
-    {
-        if ($actor->hasPermission('depot.moderate')) {
-            return;
-        }
-
-        $query->where(function (Builder $q) use ($actor) {
-            $q->whereNotNull('depot_files.approved_at');
-            if ($actor->exists) {
-                $q->orWhere('depot_files.user_id', $actor->id);
-            }
-        });
-
-        $locked = Category::lockedFor($actor);
-        if ($locked) {
-            $query->where(function (Builder $q) use ($locked, $actor) {
-                $q->whereNull('depot_files.category_id')->orWhereNotIn('depot_files.category_id', $locked);
-                if ($actor->exists) {
-                    $q->orWhere('depot_files.user_id', $actor->id);
-                }
-            });
-        }
     }
 
     /**

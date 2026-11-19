@@ -14,9 +14,9 @@ return [
             return;
         }
         $schema->table('depot_files', function (Blueprint $table) {
-            $table->string('product_key', 100)->nullable()->unique()->after('package');
-            $table->json('price_tiers')->nullable()->after('product_key');
-            $table->string('buy_url', 500)->nullable()->after('price_tiers');
+            $table->string('product_key', 100)->nullable()->unique();
+            $table->json('price_tiers')->nullable();
+            $table->string('buy_url', 500)->nullable();
         });
     },
     'down' => function (Builder $schema) {

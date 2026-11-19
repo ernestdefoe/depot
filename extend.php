@@ -4,12 +4,15 @@
  * Depot — a downloads section for Flarum 2.
  */
 
+use ErnestDefoe\Depot\Access\ScopeFileVisibility;
 use ErnestDefoe\Depot\Api\Controller;
 use ErnestDefoe\Depot\Api\Resource\FileResource;
+use ErnestDefoe\Depot\Console\PruneCommand;
 use ErnestDefoe\Depot\Console\SyncGitHubCommand;
 use ErnestDefoe\Depot\Content\FileMeta;
 use ErnestDefoe\Depot\Http\DownloadController;
 use ErnestDefoe\Depot\Http\StylesheetController;
+use ErnestDefoe\Depot\Model\File;
 use ErnestDefoe\Depot\Notification\FileApproved;
 use ErnestDefoe\Depot\Notification\NewVersion;
 use ErnestDefoe\Depot\Storage\Store;
@@ -104,6 +107,9 @@ return [
                 ->get(fn ($forum, Context $context) => $context->getActor()->hasPermission('depot.upload')),
         ]),
 
+    // Who may open a file: Depot's lists and core's notification list both ask this.
+    (new Extend\ModelVisibility(File::class))->scope(ScopeFileVisibility::class),
+
     // For notifications: a subject without a resource 500s /api/notifications.
     new Extend\ApiResource(FileResource::class),
 
@@ -115,6 +121,10 @@ return [
         ->command(SyncGitHubCommand::class)
         ->schedule(SyncGitHubCommand::class, function (Event $event): void {
             $event->hourly()->withoutOverlapping();
+        })
+        ->command(PruneCommand::class)
+        ->schedule(PruneCommand::class, function (Event $event): void {
+            $event->daily()->withoutOverlapping();
         }),
 
     (new Extend\Settings())
@@ -123,7 +133,12 @@ return [
         ->default('ernestdefoe-depot.uploads_per_hour', '10')
         ->default('ernestdefoe-depot.support_thread', '1')
         ->default('ernestdefoe-depot.github_sync', '1')
-        ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => (int) ($v ?: 250))
+        // An emptied or zero number field goes back to its default above, so
+        // every read can take the stored value as it is.
+        ->resetWhen('ernestdefoe-depot.count_window', fn ($v) => (int) $v < 1)
+        ->resetWhen('ernestdefoe-depot.max_upload_mb', fn ($v) => (int) $v < 1)
+        ->resetWhen('ernestdefoe-depot.uploads_per_hour', fn ($v) => (int) $v < 1)
+        ->serializeToForum('depotMaxUploadMb', 'ernestdefoe-depot.max_upload_mb', fn ($v) => max(1, (int) $v))
         ->serializeToForum('depotSupportThread', 'ernestdefoe-depot.support_thread', fn ($v) => $v !== '0'),
 
     // Sell uploaded files through Kiosk; see Kiosk\FileUnlock and File::canDownload.
