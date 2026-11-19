@@ -2,9 +2,12 @@ import app from 'flarum/forum/app';
 import Icon from 'flarum/common/components/Icon';
 import Tooltip from 'flarum/common/components/Tooltip';
 import stringToColor from 'flarum/common/utils/stringToColor';
+import type Mithril from 'mithril';
 import { category, rootOf, number, money, cheapest } from '../depot-api';
+import type { DepotCard, DepotCategory, DepotPriceTier, DepotUser } from '../types';
 
-export const t = (key, params) => app.translator.trans(`ernestdefoe-depot.forum.${key}`, params);
+// `params` left out is the same as passing undefined (the translator defaults it); any[] is trans()'s own type.
+export const t = (key: string, params?: Record<string, unknown>): any[] => app.translator.trans(`ernestdefoe-depot.forum.${key}`, params!);
 
 /*
  * Small pieces drawn as plain functions, called — not used as JSX tags. A
@@ -12,7 +15,7 @@ export const t = (key, params) => app.translator.trans(`ernestdefoe-depot.forum.
  */
 
 /** A 30-day trend line. Values only: it shows direction; the number beside it shows size. */
-export function Sparkline({ values, width = 96, height = 28 }) {
+export function Sparkline({ values, width = 96, height = 28 }: { values: number[]; width?: number; height?: number }) {
   const max = Math.max(...values, 1);
   const step = width / (values.length - 1);
   const pts = values.map((v, i) => [i * step, height - 2 - (v / max) * (height - 4)]);
@@ -28,7 +31,7 @@ export function Sparkline({ values, width = 96, height = 28 }) {
   );
 }
 
-export function Stars({ value, size = '' }) {
+export function Stars({ value, size = '' }: { value: number; size?: string }) {
   const full = Math.round(value * 2) / 2;
   return (
     <span className={`Depot-stars ${size}`} aria-label={t('rating_label', { rating: Number(value).toFixed(1) })}>
@@ -40,7 +43,7 @@ export function Stars({ value, size = '' }) {
 }
 
 /** Flarum's own avatar markup for a user as the Depot API sends one. */
-export function Avatar({ user, className = '' }) {
+export function Avatar({ user, className = '' }: { user: DepotUser | null; className?: string }) {
   if (!user) return <span className={`Avatar ${className}`}>?</span>;
   const name = user.displayName || user.username;
   return user.avatarUrl ? (
@@ -52,10 +55,10 @@ export function Avatar({ user, className = '' }) {
   );
 }
 
-export function UserChip({ user }) {
+export function UserChip({ user }: { user: DepotUser | null }) {
   if (!user) return null;
   return (
-    <a className="Depot-user" href={app.route('user', { username: user.slug })} onclick={(e) => e.stopPropagation()}>
+    <a className="Depot-user" href={app.route('user', { username: user.slug })} onclick={(e: Event) => e.stopPropagation()}>
       {Avatar({ user, className: 'Avatar--mini' })}
       <span className="username">{user.displayName || user.username}</span>
     </a>
@@ -63,17 +66,17 @@ export function UserChip({ user }) {
 }
 
 /** Root category filled, subcategory beside it outlined — Flarum's tag-label language. */
-export function CategoryLabels({ slug, link = true }) {
+export function CategoryLabels({ slug, link = true }: { slug: string | null; link?: boolean }) {
   const c = category(slug);
   if (!c) return null;
   const root = rootOf(c);
-  const label = (cat, outline) => {
+  const label = (cat: DepotCategory, outline?: boolean) => {
     const attrs = {
       className: `Depot-label ${outline ? 'Depot-label--outline' : ''}`,
       style: { '--label-color': cat.color || 'var(--control-color)' },
     };
     return link ? (
-      <a {...attrs} href={app.route('depot.category', { slug: cat.slug })} onclick={(e) => e.stopPropagation()}>
+      <a {...attrs} href={app.route('depot.category', { slug: cat.slug })} onclick={(e: Event) => e.stopPropagation()}>
         {cat.name}
       </a>
     ) : (
@@ -83,7 +86,7 @@ export function CategoryLabels({ slug, link = true }) {
 
   return (
     <span className="Depot-labels">
-      {label(root)}
+      {label(root!)}
       {c.parent ? label(c, true) : null}
     </span>
   );
@@ -93,13 +96,23 @@ export function CategoryLabels({ slug, link = true }) {
  * Inline style for a file's cover: its first screenshot, or — for a file with
  * none — its own icon, or its category's, on that icon's background colour.
  */
-export function coverStyle(file, size = 'thumb') {
+export function coverStyle(file: Pick<DepotCard, 'cover' | 'icon' | 'category'>, size: 'thumb' | 'full' = 'thumb'): Record<string, string> {
   if (file.cover) return { backgroundImage: `url(${file.cover[size] || file.cover.thumb})` };
   const c = rootOf(category(file.category));
   return { '--cover-color': (file.icon && file.icon.backgroundColor) || (c && c.color) || 'var(--primary-color)' };
 }
 
-export function Cover({ file, className = '', size = 'thumb', children }) {
+export function Cover({
+  file,
+  className = '',
+  size = 'thumb',
+  children,
+}: {
+  file: Pick<DepotCard, 'cover' | 'icon' | 'category'>;
+  className?: string;
+  size?: 'thumb' | 'full';
+  children?: Mithril.Children;
+}) {
   const c = rootOf(category(file.category));
   return (
     <div className={`${className} ${file.cover ? '' : 'Depot-cover--empty'}`} style={coverStyle(file, size)}>
@@ -115,7 +128,7 @@ export function Cover({ file, className = '', size = 'thumb', children }) {
   );
 }
 
-export function SourceBadge({ file }) {
+export function SourceBadge({ file }: { file: Pick<DepotCard, 'source' | 'repo' | 'host'> }) {
   if (file.source === 'github')
     return (
       <Tooltip text={t('source.github_tooltip', { repo: file.repo })}>
@@ -135,20 +148,20 @@ export function SourceBadge({ file }) {
   return null;
 }
 
-export const Count = ({ icon, value, label }) => (
+export const Count = ({ icon, value, label }: { icon: string; value: number; label?: string }) => (
   <span className="Depot-count" title={label}>
     <Icon name={icon} /> {number(value)}
   </span>
 );
 
 /** A tier's price with its period: "$4 a month", "$39 a year", "$99". */
-export function price(tier) {
+export function price(tier: DepotPriceTier) {
   const amount = money(tier.cents, tier.currency);
   return tier.interval ? t(`price.per_${tier.interval}`, { price: amount }) : amount;
 }
 
 /** "From $4 a month" for a product's card; nothing for anything else. */
-export function PriceBadge({ file }) {
+export function PriceBadge({ file }: { file: Pick<DepotCard, 'paid' | 'tiers'> }) {
   if (file.paid) {
     return (
       <span className="Depot-pill Depot-pill--price">
@@ -160,7 +173,7 @@ export function PriceBadge({ file }) {
   if (!low) return null;
   return (
     <span className="Depot-pill Depot-pill--price">
-      <Icon name="fas fa-tag" /> {file.tiers.length > 1 ? t('price.from', { price: price(low) }) : price(low)}
+      <Icon name="fas fa-tag" /> {file.tiers!.length > 1 ? t('price.from', { price: price(low) }) : price(low)}
     </span>
   );
 }

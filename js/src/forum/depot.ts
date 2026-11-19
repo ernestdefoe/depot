@@ -3,6 +3,13 @@ import app from 'flarum/forum/app';
 import extractText from 'flarum/common/utils/extractText';
 import { state, category } from './depot-api';
 import { t } from './components/bits';
+import type { DepotCategory } from './types';
+
+/** One step of a Waymark trail: no `href` for the page you are on. */
+interface Crumb {
+  label: string;
+  href?: string;
+}
 
 export { default as DepotPage } from './components/DepotPage';
 export { default as FilePage } from './components/FilePage';
@@ -17,15 +24,15 @@ export { default as FilePage } from './components/FilePage';
  * are the only ones that need them, and they always load this chunk first.
  */
 
-const downloads = (linked) => ({ label: extractText(t('title')), href: linked ? app.route('depot.index') : undefined });
+const downloads = (linked: boolean): Crumb => ({ label: extractText(t('title')), href: linked ? app.route('depot.index') : undefined });
 
 /** A category and every category above it, top first, each linked. */
-function lineage(slug) {
-  const crumbs = [];
-  const seen = new Set();
+function lineage(slug: string | null): Crumb[] {
+  const crumbs: Crumb[] = [];
+  const seen = new Set<string>();
 
   // `seen` stops a parent loop from hanging the page; the data should never have one.
-  for (let c = category(slug); c && !seen.has(c.slug); c = c.parent ? category(c.parent) : null) {
+  for (let c: DepotCategory | null | undefined = category(slug); c && !seen.has(c.slug); c = c.parent ? category(c.parent) : null) {
     seen.add(c.slug);
     crumbs.unshift({ label: c.name, href: app.route('depot.category', { slug: c.slug }) });
   }
@@ -33,7 +40,7 @@ function lineage(slug) {
   return crumbs;
 }
 
-const trails = {
+const trails: Record<string, () => Crumb[]> = {
   'depot.index': () => {
     const filter = m.route.param('filter');
     return filter ? [downloads(true), { label: extractText(t(`nav.${filter}`)) }] : [downloads(false)];
@@ -51,4 +58,7 @@ const trails = {
   },
 };
 
-if (app.waymark) Object.entries(trails).forEach(([route, crumbs]) => app.waymark.register(route, crumbs));
+// Waymark is optional and ships no typings: describe the one method used here.
+const waymark = (app as unknown as { waymark?: { register(route: string, crumbs: () => Crumb[]): void } }).waymark;
+
+if (waymark) Object.entries(trails).forEach(([route, crumbs]) => waymark.register(route, crumbs));

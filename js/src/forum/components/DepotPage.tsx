@@ -6,21 +6,29 @@ import SelectDropdown from 'flarum/common/components/SelectDropdown';
 import Icon from 'flarum/common/components/Icon';
 import LoadingIndicator from 'flarum/common/components/LoadingIndicator';
 import extractText from 'flarum/common/utils/extractText';
+import type { IPageAttrs } from 'flarum/common/components/Page';
+import type Mithril from 'mithril';
 import { api, state, category, rootOf, childrenOf, roots } from '../depot-api';
 import { t, coverStyle } from './bits';
 import FileCard, { LockedCard } from './FileCard';
+import type { ViewMode } from './FileCard';
 import Spotlight from './Spotlight';
 import DepotSidebar from './DepotSidebar';
+import type { DepotBrowse, DepotCard, DepotCategory } from '../types';
 
 const SORTS = ['updated', 'downloads', 'rating', 'newest'];
 
-function stored(key, fallback) {
+function stored(key: string, fallback: string) {
   try {
     return localStorage.getItem(key) || fallback;
   } catch (e) {
+    // Private windows refuse storage: fall back to the default.
     return fallback;
   }
 }
+
+/** What a toolbar control changes before the list reloads. */
+type Changes = Partial<Pick<DepotPage, 'sort' | 'compat' | 'query'>>;
 
 /**
  * Browse: every file, one category's, or one of the member's own views
@@ -31,11 +39,22 @@ function stored(key, fallback) {
  * theme that styles the discussion list styles this too.
  */
 export default class DepotPage extends Page {
-  oninit(vnode) {
+  sort!: string;
+  mode!: ViewMode;
+  compat!: string;
+  query!: string;
+  data!: DepotBrowse | null;
+  files!: DepotCard[];
+  loading!: boolean;
+  request?: Promise<DepotBrowse>;
+  debounce?: ReturnType<typeof setTimeout>;
+
+  oninit(vnode: Mithril.Vnode<IPageAttrs, this>) {
     super.oninit(vnode);
     this.bodyClass = 'App--index';
     this.sort = 'updated';
-    this.mode = stored('depot.view', 'grid');
+    // Anything else stored draws as a list, as the layout only checks for 'grid'.
+    this.mode = stored('depot.view', 'grid') as ViewMode;
     this.compat = '';
     this.query = '';
     this.data = null;
@@ -44,7 +63,7 @@ export default class DepotPage extends Page {
     this.load();
   }
 
-  onremove(vnode) {
+  onremove(vnode: Mithril.VnodeDOM<IPageAttrs, this>) {
     super.onremove(vnode);
     clearTimeout(this.debounce);
   }
@@ -60,7 +79,7 @@ export default class DepotPage extends Page {
   load(page = 0) {
     this.loading = true;
     const params = { category: this.slug(), sort: this.sort, q: this.query, compat: this.compat, filter: this.filter(), page };
-    const ask = (this.request = api.get('browse', params));
+    const ask = (this.request = api.get<DepotBrowse>('browse', params));
 
     return ask.then(
       (data) => {
@@ -92,7 +111,7 @@ export default class DepotPage extends Page {
     );
   }
 
-  hero(c) {
+  hero(c: DepotCategory | undefined) {
     if (!this.data) return null;
 
     if (!c) {
@@ -100,7 +119,8 @@ export default class DepotPage extends Page {
       return featured.length && !this.filter() ? <Spotlight files={featured} /> : this.plainHero();
     }
 
-    const root = rootOf(c);
+    // A category the server sent always has its parent beside it.
+    const root = rootOf(c)!;
     const count = c.parent ? c.count : childrenOf(c.slug).reduce((n, s) => n + s.count, c.count);
     return (
       <header className="DepotHero" style={{ '--hero-tint': root.color || 'var(--primary-color)' }}>
@@ -134,77 +154,18 @@ export default class DepotPage extends Page {
     );
   }
 
-  content(c) {
+  content(c: DepotCategory | undefined) {
     if (!this.data) return <LoadingIndicator display="block" />;
     const d = this.data;
     const filter = this.filter();
 
     return (
       <div className="IndexPage-results sideNavOffset DepotPage-results">
-        {d.pending && filter !== 'queue' ? (
-          <div className="DepotNotice">
-            <Icon name="fas fa-hourglass-half" />
-            <span>{t('notice.pending', { count: d.pending })}</span>
-            <a className="Button Button--small" href={app.route('depot.index', { filter: 'queue' })}>
-              {t('notice.review')}
-            </a>
-          </div>
-        ) : null}
+        {d.pending && filter !== 'queue' ? this.pendingNotice(d.pending) : null}
 
         {!c && !filter ? this.categoryTiles() : c ? this.subnav(c) : null}
 
-        <div className="DepotToolbar">
-          <SelectDropdown buttonClassName="Button" className="DepotToolbar-sort" accessibleToggleLabel={t('toolbar.sort')}>
-            {SORTS.map((key) => (
-              <Button icon={this.sort === key ? 'fas fa-check' : true} active={this.sort === key} onclick={() => this.set({ sort: key })}>
-                {t(`toolbar.sort_${key}`)}
-              </Button>
-            ))}
-          </SelectDropdown>
-
-          {d.compat.length ? (
-            <div className="DepotToolbar-chips" role="group" aria-label={t('toolbar.compat')}>
-              {d.compat.map((v) => (
-                <button
-                  type="button"
-                  className={`Depot-chip ${this.compat === v ? 'is-active' : ''}`}
-                  aria-pressed={this.compat === v ? 'true' : 'false'}
-                  onclick={() => this.set({ compat: this.compat === v ? '' : v })}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="DepotToolbar-search">
-            <Icon name="fas fa-search" />
-            <input
-              className="FormControl"
-              type="search"
-              placeholder={extractText(t('toolbar.search'))}
-              aria-label={extractText(t('toolbar.search'))}
-              value={this.query}
-              oninput={(e) => {
-                this.query = e.target.value;
-                clearTimeout(this.debounce);
-                this.debounce = setTimeout(() => this.load(), 300);
-              }}
-            />
-          </div>
-
-          <div className="DepotToolbar-view" role="group" aria-label={t('toolbar.view')}>
-            {['grid', 'list'].map((mode) => (
-              <Button
-                className={`Button Button--icon ${this.mode === mode ? 'active' : ''}`}
-                icon={mode === 'grid' ? 'fas fa-th-large' : 'fas fa-list'}
-                aria-label={t(`toolbar.view_${mode}`)}
-                aria-pressed={this.mode === mode ? 'true' : 'false'}
-                onclick={() => this.setMode(mode)}
-              />
-            ))}
-          </div>
-        </div>
+        {this.toolbar(d)}
 
         <div className="DepotToolbar-summary Depot-dim">
           {t('toolbar.showing', { count: this.files.length })}
@@ -215,18 +176,7 @@ export default class DepotPage extends Page {
           ) : null}
         </div>
 
-        {this.files.length || d.locked.length ? (
-          <div className={this.mode === 'grid' ? 'DepotGrid' : 'DepotList'}>
-            {this.files.map((file) => (
-              <FileCard file={file} mode={this.mode} key={file.id} />
-            ))}
-            {d.locked.map((locked) => LockedCard({ locked, mode: this.mode }))}
-          </div>
-        ) : this.loading ? (
-          <LoadingIndicator display="block" />
-        ) : (
-          this.empty()
-        )}
+        {this.results(d)}
 
         {d.hasMore ? (
           <div className="DepotMoreButton">
@@ -237,6 +187,100 @@ export default class DepotPage extends Page {
         ) : null}
       </div>
     );
+  }
+
+  pendingNotice(count: number) {
+    return (
+      <div className="DepotNotice">
+        <Icon name="fas fa-hourglass-half" />
+        <span>{t('notice.pending', { count })}</span>
+        <a className="Button Button--small" href={app.route('depot.index', { filter: 'queue' })}>
+          {t('notice.review')}
+        </a>
+      </div>
+    );
+  }
+
+  toolbar(d: DepotBrowse) {
+    return (
+      <div className="DepotToolbar">
+        <SelectDropdown buttonClassName="Button" className="DepotToolbar-sort" accessibleToggleLabel={t('toolbar.sort')}>
+          {SORTS.map((key) => (
+            <Button icon={this.sort === key ? 'fas fa-check' : true} active={this.sort === key} onclick={() => this.set({ sort: key })}>
+              {t(`toolbar.sort_${key}`)}
+            </Button>
+          ))}
+        </SelectDropdown>
+
+        {d.compat.length ? this.compatChips(d.compat) : null}
+
+        {this.search()}
+
+        <div className="DepotToolbar-view" role="group" aria-label={t('toolbar.view')}>
+          {(['grid', 'list'] as const).map((mode) => (
+            <Button
+              className={`Button Button--icon ${this.mode === mode ? 'active' : ''}`}
+              icon={mode === 'grid' ? 'fas fa-th-large' : 'fas fa-list'}
+              aria-label={t(`toolbar.view_${mode}`)}
+              aria-pressed={this.mode === mode ? 'true' : 'false'}
+              onclick={() => this.setMode(mode)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  compatChips(versions: string[]) {
+    return (
+      <div className="DepotToolbar-chips" role="group" aria-label={t('toolbar.compat')}>
+        {versions.map((v) => (
+          <button
+            type="button"
+            className={`Depot-chip ${this.compat === v ? 'is-active' : ''}`}
+            aria-pressed={this.compat === v ? 'true' : 'false'}
+            onclick={() => this.set({ compat: this.compat === v ? '' : v })}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  search() {
+    return (
+      <div className="DepotToolbar-search">
+        <Icon name="fas fa-search" />
+        <input
+          className="FormControl"
+          type="search"
+          placeholder={extractText(t('toolbar.search'))}
+          aria-label={extractText(t('toolbar.search'))}
+          value={this.query}
+          oninput={(e: InputEvent) => {
+            this.query = (e.target as HTMLInputElement).value;
+            clearTimeout(this.debounce);
+            this.debounce = setTimeout(() => this.load(), 300);
+          }}
+        />
+      </div>
+    );
+  }
+
+  results(d: DepotBrowse) {
+    if (this.files.length || d.locked.length) {
+      return (
+        <div className={this.mode === 'grid' ? 'DepotGrid' : 'DepotList'}>
+          {this.files.map((file) => (
+            <FileCard file={file} mode={this.mode} key={file.id} />
+          ))}
+          {d.locked.map((locked) => LockedCard({ locked, mode: this.mode }))}
+        </div>
+      );
+    }
+
+    return this.loading ? <LoadingIndicator display="block" /> : this.empty();
   }
 
   empty() {
@@ -256,18 +300,19 @@ export default class DepotPage extends Page {
     );
   }
 
-  set(changes) {
+  set(changes: Changes) {
     Object.assign(this, changes);
     this.load();
   }
 
   /** Subcategories as chips above the files — one tap down, one tap back. */
-  subnav(c) {
-    const root = rootOf(c);
+  subnav(c: DepotCategory) {
+    // A category the server sent always has its parent beside it.
+    const root = rootOf(c)!;
     // Only the ones this person may open: a closed one would just be an empty list.
     const subs = childrenOf(root.slug).filter((sub) => sub.open);
     if (!subs.length) return null;
-    const chip = (cat, label) => (
+    const chip = (cat: DepotCategory, label?: Mithril.Children) => (
       <a className={`Depot-chip ${cat.slug === c.slug ? 'is-active' : ''}`} href={app.route('depot.category', { slug: cat.slug })}>
         {label || cat.name}
       </a>
@@ -307,13 +352,14 @@ export default class DepotPage extends Page {
   }
 
   /** A tile shows a screenshot from one of its own files, when this page has one. */
-  tileArt(c) {
-    const ids = [c.slug, ...childrenOf(c.slug).map((s) => s.slug)];
-    const file = [...(this.data.featured || []), ...this.files].find((f) => f.cover && ids.includes(f.category));
+  tileArt(c: DepotCategory) {
+    const ids: (string | null)[] = [c.slug, ...childrenOf(c.slug).map((s) => s.slug)];
+    // Only drawn with the tiles, which wait for the data.
+    const file = [...(this.data!.featured || []), ...this.files].find((f) => f.cover && ids.includes(f.category));
     return file ? coverStyle(file) : {};
   }
 
-  setMode(mode) {
+  setMode(mode: ViewMode) {
     this.mode = mode;
     try {
       localStorage.setItem('depot.view', mode);

@@ -1,12 +1,26 @@
 import FormModal from 'flarum/common/components/FormModal';
+import type { IFormModalAttrs } from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
 import Icon from 'flarum/common/components/Icon';
+import type RequestError from 'flarum/common/utils/RequestError';
+import type Mithril from 'mithril';
 import { api } from '../depot-api';
 import { t } from './bits';
+import type { DepotFile, DepotReview } from '../types';
+
+interface ReviewModalAttrs extends IFormModalAttrs {
+  file: DepotFile;
+  review: DepotReview | null;
+  onsave?: () => void;
+}
 
 /** Rate a file and, optionally, say why. One review each; writing again changes it. */
-export default class ReviewModal extends FormModal {
-  oninit(vnode) {
+export default class ReviewModal extends FormModal<ReviewModalAttrs> {
+  rating!: number;
+  hover!: number;
+  body!: string;
+
+  oninit(vnode: Mithril.Vnode<ReviewModalAttrs, this>) {
     super.oninit(vnode);
     const r = this.attrs.review;
     this.rating = r ? r.rating : 0;
@@ -49,7 +63,7 @@ export default class ReviewModal extends FormModal {
             rows="5"
             maxlength="5000"
             value={this.body}
-            oninput={(e) => (this.body = e.target.value)}
+            oninput={(e: Event) => (this.body = (e.target as HTMLTextAreaElement).value)}
             placeholder={t('review.body_placeholder').toString()}
           />
         </div>
@@ -60,7 +74,7 @@ export default class ReviewModal extends FormModal {
     );
   }
 
-  onsubmit(e) {
+  onsubmit(e: SubmitEvent) {
     e.preventDefault();
     this.loading = true;
     api.post(`files/${this.attrs.file.id}/review`, { rating: this.rating, body: this.body }).then(
@@ -68,7 +82,7 @@ export default class ReviewModal extends FormModal {
         this.hide();
         this.attrs.onsave && this.attrs.onsave();
       },
-      (error) => {
+      (error: RequestError) => {
         this.loading = false;
         this.onerror(error);
       }

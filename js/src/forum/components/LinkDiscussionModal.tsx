@@ -1,12 +1,22 @@
 import FormModal from 'flarum/common/components/FormModal';
+import type { IFormModalAttrs } from 'flarum/common/components/FormModal';
 import Button from 'flarum/common/components/Button';
 import extractText from 'flarum/common/utils/extractText';
+import type Mithril from 'mithril';
 import { api } from '../depot-api';
 import { t } from './bits';
+import type { DepotFile } from '../types';
+
+interface LinkDiscussionModalAttrs extends IFormModalAttrs {
+  file: DepotFile;
+  onsave: () => void;
+}
 
 /** Point a file at an existing discussion as its support discussion, or unlink it. */
-export default class LinkDiscussionModal extends FormModal {
-  oninit(vnode) {
+export default class LinkDiscussionModal extends FormModal<LinkDiscussionModalAttrs> {
+  value!: string;
+
+  oninit(vnode: Mithril.Vnode<LinkDiscussionModalAttrs, this>) {
     super.oninit(vnode);
     const d = this.attrs.file.discussion;
     this.value = d ? d.url : '';
@@ -30,7 +40,7 @@ export default class LinkDiscussionModal extends FormModal {
             id="depot-link"
             className="FormControl"
             value={this.value}
-            oninput={(e) => (this.value = e.target.value)}
+            oninput={(e: Event) => (this.value = (e.target as HTMLInputElement).value)}
             placeholder={extractText(t('link.placeholder'))}
           />
           <p className="helpText">{t('link.help')}</p>
@@ -47,12 +57,12 @@ export default class LinkDiscussionModal extends FormModal {
     );
   }
 
-  onsubmit(e) {
+  onsubmit(e: SubmitEvent) {
     e.preventDefault();
     this.save(this.value);
   }
 
-  save(value) {
+  save(value: string) {
     this.loading = true;
     api
       .post(`files/${this.attrs.file.id}/discussion`, { discussion: value.trim() })

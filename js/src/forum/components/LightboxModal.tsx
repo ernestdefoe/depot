@@ -1,10 +1,22 @@
 import Modal from 'flarum/common/components/Modal';
+import type { IInternalModalAttrs } from 'flarum/common/components/Modal';
 import Button from 'flarum/common/components/Button';
+import type Mithril from 'mithril';
 import { t } from './bits';
+import type { DepotShot } from '../types';
+
+interface LightboxModalAttrs extends IInternalModalAttrs {
+  shots: DepotShot[];
+  index?: number;
+  title: string;
+}
 
 /** Screenshots at full size. Arrow keys move between them; Escape closes, as every Flarum modal does. */
-export default class LightboxModal extends Modal {
-  oninit(vnode) {
+export default class LightboxModal extends Modal<LightboxModalAttrs> {
+  index!: number;
+  keys!: (e: KeyboardEvent) => void;
+
+  oninit(vnode: Mithril.Vnode<LightboxModalAttrs, this>) {
     super.oninit(vnode);
     this.index = this.attrs.index || 0;
     this.keys = (e) => {
@@ -13,17 +25,17 @@ export default class LightboxModal extends Modal {
     };
   }
 
-  oncreate(vnode) {
+  oncreate(vnode: Mithril.VnodeDOM<LightboxModalAttrs, this>) {
     super.oncreate(vnode);
     document.addEventListener('keydown', this.keys);
   }
 
-  onremove(vnode) {
+  onremove(vnode: Mithril.VnodeDOM<LightboxModalAttrs, this>) {
     super.onremove(vnode);
     document.removeEventListener('keydown', this.keys);
   }
 
-  move(d) {
+  move(d: number) {
     const n = this.attrs.shots.length;
     this.index = (this.index + d + n) % n;
     m.redraw();
